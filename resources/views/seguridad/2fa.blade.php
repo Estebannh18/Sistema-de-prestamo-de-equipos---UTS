@@ -3,8 +3,8 @@
         <h1 class="titulo-seccion">Autenticación de dos factores (2FA)</h1>
     </x-slot>
 
-    <div class="py-10">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+    <div class="pb-10">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="tarjeta">
                 <p class="text-marca-suave">
                     Es opcional. Si la activas, al iniciar sesión se te pedirá también un código de tu aplicación autenticadora.
@@ -18,7 +18,7 @@
                     </form>
                 @elseif (! $user->two_factor_confirmed_at)
                     {{-- Paso 2: escanear el código QR y confirmar --}}
-                    <p class="mt-6 text-sm text-gray-600">
+                    <p class="mt-6 text-sm text-marca-suave">
                         Escanea este código QR con tu aplicación autenticadora y escribe el código que te muestra.
                     </p>
 
@@ -44,7 +44,7 @@
                     {{-- Paso 3: activo --}}
                     <p class="aviso-ok mt-6">El 2FA está activo.</p>
 
-                    <p class="mt-4 text-sm text-gray-600">Guarda estos códigos de recuperación en un lugar seguro:</p>
+                    <p class="mt-4 text-sm text-marca-suave">Guarda estos códigos de recuperación en un lugar seguro:</p>
 
                     <div class="mt-2 p-4 bg-marca-crema border border-marca-linea rounded font-mono text-sm">
                         @foreach ($user->recoveryCodes() as $codigo)

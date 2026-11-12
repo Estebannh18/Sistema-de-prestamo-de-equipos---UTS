@@ -13,7 +13,7 @@
                 <tr>
                     <td>{{ $prestamo->equipo->nombre }}</td>
                     <td>{{ $prestamo->solicitante->name }}</td>
-                    <td><span class="insignia">{{ $prestamo->estaVencido() ? 'vencido' : $prestamo->estado }}</span></td>
+                    <td><span class="insignia insignia-{{ $prestamo->estaVencido() ? 'vencido' : $prestamo->estado }}">{{ $prestamo->estaVencido() ? 'vencido' : $prestamo->estado }}</span></td>
                     <td>{{ $prestamo->fecha_esperada_devolucion->format('d/m/Y') }}</td>
                 </tr>
             @empty

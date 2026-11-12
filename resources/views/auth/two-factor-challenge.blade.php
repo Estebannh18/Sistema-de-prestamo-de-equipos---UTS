@@ -1,5 +1,5 @@
 <x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600">
+    <div class="mb-4 text-sm text-marca-suave">
         Ingresa el código de tu aplicación autenticadora o uno de tus códigos de recuperación.
     </div>
 

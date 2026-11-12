@@ -17,8 +17,8 @@
                     <td>{{ $equipo->codigo_inventario }}</td>
                     <td>{{ $equipo->nombre }}</td>
                     <td>{{ $equipo->categoria->nombre }}</td>
-                    <td><span class="insignia">{{ $equipo->estado }}</span></td>
-                    <td><span class="insignia">{{ $equipo->solicitable_por }}</span></td>
+                    <td><span class="insignia insignia-{{ $equipo->estado }}">{{ $equipo->estado }}</span></td>
+                    <td><span class="insignia insignia-{{ $equipo->solicitable_por }}">{{ $equipo->solicitable_por }}</span></td>
                 </tr>
             @empty
                 <tr><td colspan="5">No hay equipos para mostrar.</td></tr>

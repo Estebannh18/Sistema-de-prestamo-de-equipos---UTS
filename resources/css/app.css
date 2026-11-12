@@ -2,53 +2,156 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    body {
+        -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 {
+        @apply font-display;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    ::selection {
+        @apply bg-marca-lima text-marca-noche;
+    }
+}
+
 @layer components {
+    /* ---------- Botones: redondos, estilo portal institucional ---------- */
     .boton-principal {
-        @apply inline-flex items-center gap-2 rounded-md bg-marca-oliva px-5 py-2.5 font-semibold text-white transition hover:bg-marca-bosque focus:outline-none focus:ring-2 focus:ring-marca-oliva focus:ring-offset-2;
+        @apply inline-flex items-center justify-center gap-2 rounded-full bg-marca-oliva px-6 py-2.5 font-display text-sm font-bold text-white shadow-[0_4px_0_0_#0b3d2a] transition hover:-translate-y-0.5 hover:bg-marca-bosque hover:shadow-[0_6px_0_0_#0b3d2a] active:translate-y-0.5 active:shadow-[0_2px_0_0_#0b3d2a] focus:outline-none focus-visible:ring-4 focus-visible:ring-marca-lima/60;
     }
 
     .boton-claro {
-        @apply inline-flex items-center gap-2 rounded-md bg-marca-lima px-5 py-3 font-semibold text-marca-noche transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-marca-noche;
+        @apply inline-flex items-center justify-center gap-2 rounded-full bg-marca-lima px-6 py-3 font-display font-bold text-marca-noche shadow-[0_4px_0_0_#7b8305] transition hover:-translate-y-0.5 hover:bg-[#d6e21a] hover:shadow-[0_6px_0_0_#7b8305] active:translate-y-0.5 active:shadow-[0_2px_0_0_#7b8305] focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60;
     }
 
+    /* ---------- Tarjetas ---------- */
     .tarjeta {
-        @apply rounded-xl border border-marca-linea bg-white p-6 shadow-sm;
+        @apply relative rounded-3xl border border-marca-linea bg-white p-6 shadow-[0_10px_30px_-18px_rgba(11,61,42,0.35)] sm:p-8;
     }
 
+    /* ---------- Títulos ---------- */
     .titulo-seccion {
-        @apply font-display text-2xl font-bold text-marca-noche;
+        @apply font-display text-2xl font-extrabold tracking-tight text-marca-noche sm:text-3xl;
     }
 
     .titulo-seccion::after {
         content: '';
-        @apply mt-2 block h-1 w-12 rounded bg-marca-lima;
+        @apply mt-3 block h-1.5 w-16 rounded-full bg-marca-lima;
     }
 
+    /* Título dentro de la banda verde de cada página */
+    .banda .titulo-seccion {
+        @apply text-white;
+    }
+
+    /* ---------- Enlaces ---------- */
     .enlace {
-        @apply font-medium text-marca-oliva underline decoration-marca-lima decoration-2 underline-offset-4 hover:text-marca-noche;
+        @apply font-bold text-marca-oliva underline decoration-marca-lima decoration-[3px] underline-offset-4 transition hover:text-marca-noche hover:decoration-marca-oliva;
     }
 
+    /* ---------- Tablas ---------- */
     .tabla {
-        @apply w-full text-left text-sm;
+        @apply w-full border-separate border-spacing-0 text-left text-sm;
     }
 
     .tabla th {
-        @apply border-b-2 border-marca-linea bg-marca-crema px-3 py-3 font-semibold text-marca-noche;
+        @apply bg-marca-bosque px-4 py-3.5 font-display text-xs font-bold uppercase tracking-wider text-white first:rounded-tl-2xl last:rounded-tr-2xl;
     }
 
     .tabla td {
-        @apply border-b border-marca-linea px-3 py-3 align-middle;
+        @apply border-b border-marca-linea px-4 py-3.5 align-middle;
     }
 
+    .tabla tbody tr {
+        @apply transition-colors odd:bg-white even:bg-marca-crema/60 hover:bg-marca-limaclaro/60;
+    }
+
+    /* ---------- Insignias de estado y rol ---------- */
     .insignia {
-        @apply inline-block rounded-full bg-marca-crema px-2.5 py-0.5 text-xs font-medium text-marca-noche ring-1 ring-inset ring-marca-linea;
+        @apply inline-flex items-center gap-1.5 rounded-full bg-marca-crema px-3 py-1 text-xs font-bold capitalize text-marca-noche ring-1 ring-inset ring-marca-linea;
     }
 
+    /* ---------- Avisos ---------- */
     .aviso-ok {
-        @apply mb-4 rounded-md border-s-4 border-marca-oliva bg-marca-crema px-4 py-3 text-sm text-marca-noche;
+        @apply mb-5 flex items-center gap-3 rounded-2xl border-2 border-marca-lima bg-marca-limaclaro px-5 py-3.5 text-sm font-semibold text-marca-noche;
     }
 
     .aviso-error {
-        @apply mb-4 rounded-md border-s-4 border-red-700 bg-red-50 px-4 py-3 text-sm text-red-800;
+        @apply mb-5 flex items-center gap-3 rounded-2xl border-2 border-rose-300 bg-rose-50 px-5 py-3.5 text-sm font-semibold text-rose-800;
+    }
+
+    /* ---------- Banda de título con formas institucionales ---------- */
+    .banda {
+        @apply relative overflow-hidden bg-marca-bosque;
+    }
+
+    /* Franja diagonal lima y verde, como la cinta del portal UTS */
+    .franja-uts {
+        background-image: repeating-linear-gradient(-45deg, #c7d309 0 14px, #0b3d2a 14px 28px);
+    }
+
+    /* Campos de formulario */
+    .campo-uts {
+        @apply rounded-xl border-2 border-marca-linea bg-white shadow-none transition focus:border-marca-oliva focus:ring-4 focus:ring-marca-lima/40;
     }
 }
+
+/* Variantes de insignia fuera de @layer: se arman con datos (insignia-{{ estado }}) y Tailwind no debe purgarlas */
+    .insignia-disponible,
+    .insignia-aprobado {
+        @apply bg-emerald-100 text-emerald-800 ring-emerald-200;
+    }
+
+    .insignia-prestado {
+        @apply bg-sky-100 text-sky-800 ring-sky-200;
+    }
+
+    .insignia-mantenimiento,
+    .insignia-pendiente {
+        @apply bg-amber-100 text-amber-800 ring-amber-200;
+    }
+
+    .insignia-rechazado,
+    .insignia-vencido {
+        @apply bg-rose-100 text-rose-800 ring-rose-200;
+    }
+
+    .insignia-devuelto {
+        @apply bg-slate-100 text-slate-700 ring-slate-200;
+    }
+
+    .insignia-administrador {
+        @apply bg-marca-noche text-marca-lima ring-marca-noche;
+    }
+
+    .insignia-funcionario {
+        @apply bg-marca-oliva text-white ring-marca-oliva;
+    }
+
+    .insignia-docente {
+        @apply bg-marca-lima text-marca-noche ring-[#b3be08];
+    }
+
+    .insignia-estudiante,
+    .insignia-ambos {
+        @apply bg-marca-limaclaro text-marca-bosque ring-[#dfe78f];
+    }
+
+    .insignia-disponible::before,
+    .insignia-aprobado::before,
+    .insignia-prestado::before,
+    .insignia-mantenimiento::before,
+    .insignia-pendiente::before,
+    .insignia-rechazado::before,
+    .insignia-vencido::before,
+    .insignia-devuelto::before {
+        content: '';
+        @apply h-1.5 w-1.5 rounded-full bg-current;
+    }
+

@@ -24,7 +24,7 @@
                     <td>{{ $usuario->name }}</td>
                     <td>{{ $usuario->email }}</td>
                     <td>{{ $usuario->documento }}</td>
-                    <td><span class="insignia">{{ $usuario->rol }}</span></td>
+                    <td><span class="insignia insignia-{{ $usuario->rol }}">{{ $usuario->rol }}</span></td>
                     <td>
                         <a class="enlace" href="{{ route('usuarios.edit', $usuario) }}">Editar</a>
                         <form method="POST" action="{{ route('usuarios.destroy', $usuario) }}" class="inline ms-2" onsubmit="return confirm('¿Eliminar este usuario?');">

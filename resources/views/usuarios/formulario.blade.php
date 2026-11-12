@@ -30,7 +30,7 @@
 
 <div class="mt-4">
     <x-input-label for="rol" value="Rol" />
-    <select id="rol" name="rol" class="mt-1 block w-full border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm" required>
+    <select id="rol" name="rol" class="mt-1 block w-full campo-uts" required>
         @foreach ($roles as $rol)
             <option value="{{ $rol }}" @selected(old('rol', $usuario?->rol) === $rol)>{{ $rol }}</option>
         @endforeach

@@ -5,12 +5,12 @@
         <h1 class="titulo-seccion">{{ $titulo }}</h1>
     </x-slot>
 
-    <div class="py-10">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+    <div class="pb-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="tarjeta overflow-x-auto">
                 @if ($pendiente)
-                    <p class="mb-5 inline-flex items-center gap-2 rounded bg-marca-morado px-3 py-1 text-sm font-semibold text-white">
-                        <span class="h-2 w-2 rounded-full bg-marca-lima" aria-hidden="true"></span>
+                    <p class="mb-6 inline-flex items-center gap-2.5 overflow-hidden rounded-full bg-marca-limaclaro py-1.5 pl-1.5 pr-4 text-sm font-bold text-marca-noche ring-2 ring-marca-lima">
+                        <span class="franja-uts flex h-6 w-6 items-center justify-center rounded-full" aria-hidden="true"></span>
                         En construcción: por ahora este módulo solo muestra su estructura.
                     </p>
                 @endif

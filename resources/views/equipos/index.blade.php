@@ -24,7 +24,7 @@
         </div>
         <div>
             <x-input-label for="categoria" value="Categoría" />
-            <select id="categoria" name="categoria" class="mt-1 block w-48 border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm">
+            <select id="categoria" name="categoria" class="mt-1 block w-48 campo-uts">
                 <option value="">Todas</option>
                 @foreach ($categorias as $opcion)
                     <option value="{{ $opcion->id }}" @selected((string) $categoriaActual === (string) $opcion->id)>{{ $opcion->nombre }}</option>
@@ -34,7 +34,7 @@
         @if ($esPersonal)
             <div>
                 <x-input-label for="estado" value="Estado" />
-                <select id="estado" name="estado" class="mt-1 block w-44 border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm">
+                <select id="estado" name="estado" class="mt-1 block w-44 campo-uts">
                     <option value="">Todos</option>
                     @foreach (['disponible', 'prestado', 'mantenimiento'] as $opcion)
                         <option value="{{ $opcion }}" @selected($estadoActual === $opcion)>{{ $opcion }}</option>
@@ -65,8 +65,8 @@
                     <td>{{ $equipo->codigo_inventario }}</td>
                     <td>{{ $equipo->nombre }}</td>
                     <td>{{ $equipo->categoria->nombre }}</td>
-                    <td><span class="insignia">{{ $equipo->estado }}</span></td>
-                    <td><span class="insignia">{{ $equipo->solicitable_por }}</span></td>
+                    <td><span class="insignia insignia-{{ $equipo->estado }}">{{ $equipo->estado }}</span></td>
+                    <td><span class="insignia insignia-{{ $equipo->solicitable_por }}">{{ $equipo->solicitable_por }}</span></td>
                     <td class="whitespace-nowrap">
                         <a class="enlace" href="{{ route('equipos.show', $equipo) }}">Ver</a>
                         @if (Auth::user()->esAdministrador())

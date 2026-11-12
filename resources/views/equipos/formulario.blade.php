@@ -1,6 +1,6 @@
 <div>
     <x-input-label for="categoria_id" value="Categoría" />
-    <select id="categoria_id" name="categoria_id" class="mt-1 block w-full border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm" required>
+    <select id="categoria_id" name="categoria_id" class="mt-1 block w-full campo-uts" required>
         <option value="">Elige una categoría</option>
         @foreach ($categorias as $opcion)
             <option value="{{ $opcion->id }}" @selected((string) old('categoria_id', $categoriaActual) === (string) $opcion->id)>{{ $opcion->nombre }}</option>
@@ -23,7 +23,7 @@
 
 <div class="mt-4">
     <x-input-label for="solicitable_por" value="¿Quién lo puede pedir?" />
-    <select id="solicitable_por" name="solicitable_por" class="mt-1 block w-full border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm" required>
+    <select id="solicitable_por" name="solicitable_por" class="mt-1 block w-full campo-uts" required>
         @foreach (['ambos' => 'Estudiantes y docentes', 'estudiante' => 'Solo estudiantes', 'docente' => 'Solo docentes'] as $valor => $texto)
             <option value="{{ $valor }}" @selected(old('solicitable_por', $equipo?->solicitable_por ?? 'ambos') === $valor)>{{ $texto }}</option>
         @endforeach
@@ -36,7 +36,7 @@
     @if ($equipo?->estado === 'prestado')
         <p class="mt-1 text-sm text-marca-suave">Prestado: cambia solo al registrar la devolución.</p>
     @else
-        <select id="estado" name="estado" class="mt-1 block w-full border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm" required>
+        <select id="estado" name="estado" class="mt-1 block w-full campo-uts" required>
             @foreach (['disponible', 'mantenimiento'] as $opcion)
                 <option value="{{ $opcion }}" @selected(old('estado', $equipo?->estado ?? 'disponible') === $opcion)>{{ $opcion }}</option>
             @endforeach
@@ -60,6 +60,6 @@
 
 <div class="mt-4">
     <x-input-label for="descripcion" value="Descripción (opcional)" />
-    <textarea id="descripcion" name="descripcion" rows="3" class="mt-1 block w-full border-marca-linea focus:border-marca-oliva focus:ring-marca-oliva rounded-md shadow-sm">{{ old('descripcion', $equipo?->descripcion) }}</textarea>
+    <textarea id="descripcion" name="descripcion" rows="3" class="mt-1 block w-full campo-uts">{{ old('descripcion', $equipo?->descripcion) }}</textarea>
     <x-input-error :messages="$errors->get('descripcion')" class="mt-2" />
 </div>

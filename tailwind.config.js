@@ -12,21 +12,29 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['"Hanken Grotesk"', ...defaultTheme.fontFamily.sans],
-                display: ['Raleway', ...defaultTheme.fontFamily.sans],
+                sans: ['"Nunito Sans"', ...defaultTheme.fontFamily.sans],
+                display: ['Montserrat', ...defaultTheme.fontFamily.sans],
             },
             colors: {
+                // Paleta inspirada en el portal institucional UTS:
+                // verde institucional + lima del logo (#c7d309) + gris del logotipo (#808286)
                 marca: {
-                    noche: '#12331f',
-                    bosque: '#1f4a2c',
-                    oliva: '#38591c',
-                    lima: '#c2d62b',
-                    crema: '#faf7f1',
-                    linea: '#e4dfd3',
-                    tinta: '#23291f',
-                    suave: '#5d6459',
-                    morado: '#4c1d87',
+                    noche: '#0b3d2a',
+                    bosque: '#0f5c3a',
+                    oliva: '#1a7a46',
+                    hoja: '#3fa45b',
+                    lima: '#c7d309',
+                    limaclaro: '#eef4b5',
+                    crema: '#f4f7ef',
+                    linea: '#dde5d6',
+                    tinta: '#1d2a21',
+                    suave: '#5c6a60',
+                    gris: '#808286',
+                    morado: '#0f5c3a',
                 },
+            },
+            borderRadius: {
+                '4xl': '2rem',
             },
         },
     },

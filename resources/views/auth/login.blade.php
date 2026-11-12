@@ -29,8 +29,8 @@
         <!-- Remember Me -->
         <div class="block mt-4">
             <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-marca-linea text-marca-oliva shadow-sm focus:ring-marca-oliva" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
+                <input id="remember_me" type="checkbox" class="h-5 w-5 rounded-md border-2 border-marca-linea text-marca-oliva focus:ring-marca-lima" name="remember">
+                <span class="ms-2 text-sm text-marca-suave">{{ __('Remember me') }}</span>
             </label>
         </div>
 
@@ -41,7 +41,7 @@
                 </a>
             @endif
 
-            <x-primary-button>
+            <x-primary-button class="px-8">
                 {{ __('Log in') }}
             </x-primary-button>
         </div>

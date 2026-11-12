@@ -5,9 +5,9 @@
         <dt class="font-semibold text-marca-noche">Categoría</dt>
         <dd>{{ $equipo->categoria->nombre }}</dd>
         <dt class="font-semibold text-marca-noche">Estado</dt>
-        <dd><span class="insignia">{{ $equipo->estado }}</span></dd>
+        <dd><span class="insignia insignia-{{ $equipo->estado }}">{{ $equipo->estado }}</span></dd>
         <dt class="font-semibold text-marca-noche">Lo puede pedir</dt>
-        <dd><span class="insignia">{{ $equipo->solicitable_por }}</span></dd>
+        <dd><span class="insignia insignia-{{ $equipo->solicitable_por }}">{{ $equipo->solicitable_por }}</span></dd>
         @if ($equipo->marca)
             <dt class="font-semibold text-marca-noche">Marca</dt>
             <dd>{{ $equipo->marca }}</dd>
