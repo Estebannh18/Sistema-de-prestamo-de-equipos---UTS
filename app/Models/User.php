@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -13,6 +14,23 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable
 {
     public const ROLES = ['administrador', 'funcionario', 'docente', 'estudiante'];
+
+    /**
+     * Valores por defecto de un usuario nuevo, iguales a los de la base de datos.
+     * Sin esto, un usuario recién creado no tendría "activo" hasta volver a leerse.
+     */
+    protected $attributes = [
+        'activo' => true,
+        'tipo_documento' => 'CC',
+    ];
+
+    /** Tipos de documento aceptados: código => nombre. */
+    public const TIPOS_DOCUMENTO = [
+        'CC' => 'Cédula de ciudadanía',
+        'TI' => 'Tarjeta de identidad',
+        'CE' => 'Cédula de extranjería',
+        'PA' => 'Pasaporte',
+    ];
 
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
@@ -29,7 +47,9 @@ class User extends Authenticatable
         'rol',
         'documento',
         'telefono',
-        'programa_dependencia',
+        'tipo_documento',
+        'programa_id',
+        'dependencia',
     ];
 
     /**
@@ -55,6 +75,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'activo' => 'boolean',
         ];
     }
 
@@ -71,6 +92,23 @@ class User extends Authenticatable
     public function esDocente(): bool
     {
         return $this->rol === 'docente';
+    }
+
+    /** Cuántos administradores con la cuenta activa hay: nunca debe llegar a cero. */
+    public static function administradoresActivos(): int
+    {
+        return self::where('rol', 'administrador')->where('activo', true)->count();
+    }
+
+    /** Préstamos que pidió y siguen abiertos: pendientes o aprobados sin devolver. */
+    public function tienePrestamosActivos(): bool
+    {
+        return $this->solicitudes()->whereIn('estado', ['pendiente', 'aprobado'])->exists();
+    }
+
+    public function nombreTipoDocumento(): string
+    {
+        return self::TIPOS_DOCUMENTO[$this->tipo_documento] ?? $this->tipo_documento;
     }
 
     public function esEstudiante(): bool
@@ -107,6 +145,12 @@ class User extends Authenticatable
                 '2FA' => 'seguridad.2fa',
             ],
         };
+    }
+
+    /** Programa académico (solo estudiantes y docentes). */
+    public function programa(): BelongsTo
+    {
+        return $this->belongsTo(Programa::class);
     }
 
     public function solicitudes(): HasMany

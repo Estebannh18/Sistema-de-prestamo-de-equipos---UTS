@@ -14,6 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'rol' => \App\Http\Middleware\VerificarRol::class,
         ]);
+
+        // En cada petición web: una cuenta desactivada no puede seguir navegando.
+        $middleware->web(append: [
+            \App\Http\Middleware\VerificarCuentaActiva::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

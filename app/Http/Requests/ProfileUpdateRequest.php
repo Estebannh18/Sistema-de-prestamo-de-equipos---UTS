@@ -2,13 +2,23 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
+/**
+ * Perfil propio: cada usuario cambia su nombre y su correo con las mismas reglas
+ * que usa el administrador. El rol y el documento solo los cambia el administrador.
+ */
 class ProfileUpdateRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'name' => UsuarioRequest::normalizarTexto($this->input('name')),
+            'email' => UsuarioRequest::normalizarCorreo($this->input('email')),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -17,15 +27,16 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
-            ],
+            'name' => UsuarioRequest::reglasNombre(),
+            'email' => UsuarioRequest::reglasCorreo($this->user()),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return UsuarioRequest::mensajesNombreYCorreo();
     }
 }

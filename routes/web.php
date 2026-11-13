@@ -27,6 +27,9 @@ Route::middleware('auth')->group(function () {
     // Las rutas fijas, como /equipos/create, van antes que las que tienen parámetro, como /equipos/{equipo}.
     Route::middleware('rol:administrador')->group(function () {
         Route::resource('usuarios', UsuarioController::class);
+        Route::patch('usuarios/{usuario}/desactivar', [UsuarioController::class, 'desactivar'])->name('usuarios.desactivar');
+        Route::patch('usuarios/{usuario}/activar', [UsuarioController::class, 'activar'])->name('usuarios.activar');
+        Route::patch('usuarios/{usuario}/restablecer-2fa', [UsuarioController::class, 'restablecerDosFactores'])->name('usuarios.restablecer2fa');
         Route::resource('categorias', CategoriaController::class);
         Route::resource('equipos', EquipoController::class)->except(['index', 'show']);
     });
