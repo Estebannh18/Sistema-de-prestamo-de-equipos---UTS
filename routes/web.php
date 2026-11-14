@@ -2,18 +2,21 @@
 
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\NoticiaController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\SeguridadController;
 use App\Http\Controllers\UsuarioController;
+use App\Models\Noticia;
 use Illuminate\Support\Facades\Route;
 
 // Portada provisional: el proyecto aún está en construcción.
 Route::view('/', 'inicio')->name('inicio');
 
+// Inicio de cada usuario: sus módulos y las 3 noticias más recientes.
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    return view('dashboard', ['noticias' => Noticia::query()->recientes()->take(3)->get()]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -44,10 +47,15 @@ Route::middleware('auth')->group(function () {
         Route::patch('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
         Route::get('reportes/prestamos', [ReporteController::class, 'index'])->name('reportes.prestamos');
         Route::get('reportes/prestamos/pdf', [ReporteController::class, 'pdf'])->name('reportes.prestamos.pdf');
+        // Crear, editar y borrar noticias. Qué noticia puede editar cada uno lo decide NoticiaPolicy.
+        Route::resource('noticias', NoticiaController::class)->except(['index', 'show']);
     });
 
     Route::resource('equipos', EquipoController::class)->only(['index', 'show']);
     Route::resource('prestamos', PrestamoController::class)->only(['index', 'show']);
+    // Las noticias y sus archivos los ven todos los usuarios con sesión iniciada.
+    Route::get('noticias/adjuntos/{adjunto}', [NoticiaController::class, 'adjunto'])->name('noticias.adjunto');
+    Route::resource('noticias', NoticiaController::class)->only(['index', 'show']);
 });
 
 require __DIR__.'/auth.php';

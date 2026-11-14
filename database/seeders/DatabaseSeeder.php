@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             UsuarioSeeder::class,
             CategoriaSeeder::class,
             EquipoSeeder::class,
+            NoticiaSeeder::class,
         ]);
     }
 }

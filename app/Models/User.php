@@ -130,18 +130,21 @@ class User extends Authenticatable
                 'Equipos y salones' => 'equipos.index',
                 'Préstamos' => 'prestamos.index',
                 'Reporte' => 'reportes.prestamos',
+                'Noticias' => 'noticias.index',
                 '2FA' => 'seguridad.2fa',
             ],
             'funcionario' => [
                 'Equipos y salones' => 'equipos.index',
                 'Préstamos' => 'prestamos.index',
                 'Reporte' => 'reportes.prestamos',
+                'Noticias' => 'noticias.index',
                 '2FA' => 'seguridad.2fa',
             ],
             default => [
                 'Solicitud' => 'prestamos.create',
                 'Equipos y salones' => 'equipos.index',
                 'Mis préstamos' => 'prestamos.index',
+                'Noticias' => 'noticias.index',
                 '2FA' => 'seguridad.2fa',
             ],
         };

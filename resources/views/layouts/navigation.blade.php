@@ -7,6 +7,7 @@
         'prestamos.index' => 'prestamos',
         'prestamos.create' => 'solicitud',
         'reportes.prestamos' => 'reporte',
+        'noticias.index' => 'noticias',
         'seguridad.2fa' => 'seguridad',
     ];
     $iniciales = collect(explode(' ', Auth::user()->name))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('');
