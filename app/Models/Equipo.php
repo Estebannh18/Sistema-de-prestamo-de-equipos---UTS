@@ -38,6 +38,18 @@ class Equipo extends Model
         return $query->where('estado', 'disponible')->whereIn('solicitable_por', [$user->rol, 'ambos']);
     }
 
+    /**
+     * Quién puede pedir el equipo, en palabras.
+     */
+    public function quienPuedePedir(): string
+    {
+        return match ($this->solicitable_por) {
+            'docente' => 'Solo docentes',
+            'estudiante' => 'Solo estudiantes',
+            default => 'Docentes y estudiantes',
+        };
+    }
+
     public function estaDisponible(): bool
     {
         return $this->estado === 'disponible';

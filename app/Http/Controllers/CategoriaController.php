@@ -11,18 +11,34 @@ use Illuminate\View\View;
 class CategoriaController extends Controller
 {
     /**
-     * Lista las categorías y las filtra por nombre.
+     * Lista las categorías, agrupadas en equipos y espacios, con cuántos equipos hay en cada estado.
      */
     public function index(Request $request): View
     {
         $buscar = trim((string) $request->query('buscar'));
 
-        $categorias = Categoria::withCount('equipos')
+        $categorias = Categoria::withCount([
+            'equipos',
+            'equipos as disponibles_count' => fn ($query) => $query->where('estado', 'disponible'),
+            'equipos as prestados_count' => fn ($query) => $query->where('estado', 'prestado'),
+            'equipos as mantenimiento_count' => fn ($query) => $query->where('estado', 'mantenimiento'),
+        ])
             ->when($buscar !== '', fn ($query) => $query->where('nombre', 'like', "%{$buscar}%"))
             ->orderBy('nombre')
             ->get();
 
-        return view('categorias.index', ['categorias' => $categorias, 'buscar' => $buscar]);
+        return view('categorias.index', [
+            'grupos' => [
+                'Equipos' => $categorias->where('tipo', 'equipo'),
+                'Espacios' => $categorias->where('tipo', 'espacio'),
+            ],
+            'totales' => [
+                'categorias' => $categorias->count(),
+                'equipos' => $categorias->sum('equipos_count'),
+                'disponibles' => $categorias->sum('disponibles_count'),
+            ],
+            'buscar' => $buscar,
+        ]);
     }
 
     /**
@@ -93,6 +109,8 @@ class CategoriaController extends Controller
         return [
             'nombre' => ['required', 'string', 'max:255', Rule::unique(Categoria::class)->ignore($categoria)],
             'descripcion' => ['nullable', 'string'],
+            'tipo' => ['required', Rule::in(['equipo', 'espacio'])],
+            'icono' => ['nullable', Rule::in(array_keys(Categoria::ICONOS))],
         ];
     }
 }

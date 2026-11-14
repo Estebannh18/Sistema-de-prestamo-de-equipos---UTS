@@ -12,31 +12,49 @@ use Illuminate\View\View;
 class EquipoController extends Controller
 {
     /**
-     * Lista los equipos y los filtra por nombre o código, categoría y estado (RF-05, RF-06, RF-07).
-     * Estudiantes y docentes solo ven los disponibles habilitados para su rol.
+     * Lista los equipos y los filtra por tipo (equipos o espacios), nombre o código, categoría y estado
+     * (RF-05, RF-06, RF-07). Estudiantes y docentes solo ven los disponibles habilitados para su rol.
+     * El resultado se agrupa por categoría.
      */
     public function index(Request $request): View
     {
         $user = $request->user();
+        $esPersonal = $user->esAdministrador() || $user->esFuncionario();
         $buscar = trim((string) $request->query('buscar'));
+        $tipo = in_array($request->query('tipo'), ['equipo', 'espacio'], true) ? $request->query('tipo') : null;
         $categoria = $request->query('categoria');
-        $estado = $request->query('estado');
+        $estado = $esPersonal ? $request->query('estado') : null;
 
-        $equipos = Equipo::with('categoria')
-            ->when($user->esDocente() || $user->esEstudiante(), fn ($query) => $query->disponiblesPara($user))
+        // Todo menos el estado: sobre esta base se cuentan los totales por estado del resumen.
+        $base = Equipo::query()
+            ->when(! $esPersonal, fn ($query) => $query->disponiblesPara($user))
+            ->when($tipo, fn ($query) => $query->whereHas('categoria', fn ($query) => $query->where('tipo', $tipo)))
             ->when($buscar !== '', fn ($query) => $query->where(function ($query) use ($buscar) {
-                $query->where('nombre', 'like', "%{$buscar}%")->orWhere('codigo_inventario', 'like', "%{$buscar}%");
+                $query->where('nombre', 'like', "%{$buscar}%")
+                    ->orWhere('codigo_inventario', 'like', "%{$buscar}%")
+                    ->orWhere('marca', 'like', "%{$buscar}%")
+                    ->orWhere('modelo', 'like', "%{$buscar}%");
             }))
-            ->when($categoria, fn ($query) => $query->where('categoria_id', $categoria))
+            ->when($categoria, fn ($query) => $query->where('categoria_id', $categoria));
+
+        $porEstado = (clone $base)->selectRaw('estado, count(*) as total')->groupBy('estado')->pluck('total', 'estado');
+
+        $equipos = (clone $base)
+            ->with('categoria')
+            ->when($user->esAdministrador(), fn ($query) => $query->withCount('prestamos'))
             ->when($estado, fn ($query) => $query->where('estado', $estado))
             ->orderBy('codigo_inventario')
             ->get();
 
         return view('equipos.index', [
-            'equipos' => $equipos,
-            'categorias' => Categoria::orderBy('nombre')->get(),
-            'salones' => Categoria::where('nombre', 'Salones')->value('id'),
+            'grupos' => $equipos->groupBy('categoria_id')->sortBy(fn ($grupo) => $grupo->first()->categoria->nombre),
+            'total' => $equipos->count(),
+            'porEstado' => $porEstado,
+            'esPersonal' => $esPersonal,
+            'categorias' => Categoria::when($tipo, fn ($query) => $query->where('tipo', $tipo))->orderBy('nombre')->get(),
+            'salones' => Categoria::where('tipo', 'espacio')->orderBy('nombre')->value('id'),
             'buscar' => $buscar,
+            'tipoActual' => $tipo,
             'categoriaActual' => $categoria,
             'estadoActual' => $estado,
         ]);
