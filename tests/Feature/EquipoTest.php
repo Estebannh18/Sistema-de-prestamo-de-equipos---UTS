@@ -61,14 +61,27 @@ class EquipoTest extends TestCase
             ->assertSee('<option value="'.$this->salones->id.'" selected', false);
     }
 
-    public function test_crear_salon_usa_la_categoria_de_tipo_espacio_aunque_cambie_de_nombre(): void
+    public function test_crear_espacio_ofrece_cada_categoria_de_tipo_espacio(): void
     {
         $this->salones->update(['nombre' => 'Aulas y auditorios']);
-        Categoria::create(['nombre' => 'Portátiles', 'tipo' => 'equipo']);
+        $laboratorios = Categoria::create(['nombre' => 'Laboratorios', 'tipo' => 'espacio']);
+        $portatiles = Categoria::create(['nombre' => 'Portátiles', 'tipo' => 'equipo']);
 
         $this->actingAs($this->administrador())->get('/equipos')
-            ->assertSee('Crear salón')
-            ->assertSee(route('equipos.create', ['categoria' => $this->salones->id]), false);
+            ->assertSee('Crear espacio')
+            ->assertSee(route('equipos.create', ['categoria' => $this->salones->id]), false)
+            ->assertSee(route('equipos.create', ['categoria' => $laboratorios->id]), false)
+            ->assertDontSee(route('equipos.create', ['categoria' => $portatiles->id]), false);
+    }
+
+    public function test_el_titulo_del_formulario_dice_si_se_crea_un_equipo_o_un_espacio(): void
+    {
+        $portatiles = Categoria::create(['nombre' => 'Portátiles', 'tipo' => 'equipo']);
+        $this->actingAs($this->administrador());
+
+        $this->get("/equipos/create?categoria={$this->salones->id}")->assertSeeText('Crear espacio');
+        $this->get("/equipos/create?categoria={$portatiles->id}")->assertSeeText('Crear equipo')->assertDontSeeText('Crear espacio');
+        $this->get('/equipos/create')->assertSeeText('Crear equipo');
     }
 
     public function test_los_datos_invalidos_no_crean_el_equipo(): void
@@ -78,7 +91,9 @@ class EquipoTest extends TestCase
 
         $this->post('/equipos', $this->datos())->assertSessionHasErrors('codigo_inventario');
         $this->post('/equipos', $this->datos(['codigo_inventario' => 'X', 'categoria_id' => 999]))->assertSessionHasErrors('categoria_id');
-        $this->post('/equipos', $this->datos(['codigo_inventario' => 'X', 'solicitable_por' => 'nadie']))->assertSessionHasErrors('solicitable_por');
+        $cables = Categoria::create(['nombre' => 'Cables', 'tipo' => 'equipo']);
+        $this->post('/equipos', $this->datos(['categoria_id' => $cables->id, 'codigo_inventario' => 'X', 'solicitable_por' => 'nadie']))->assertSessionHasErrors('solicitable_por');
+        $this->post('/equipos', $this->datos(['codigo_inventario' => 'Y', 'capacidad' => 0]))->assertSessionHasErrors('capacidad');
         $this->post('/equipos', $this->datos(['codigo_inventario' => 'X', 'estado' => 'prestado']))->assertSessionHasErrors('estado');
 
         $this->assertSame(1, Equipo::count());

@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Equipo extends Model
@@ -15,6 +17,8 @@ class Equipo extends Model
         'nombre',
         'marca',
         'modelo',
+        'ubicacion',
+        'capacidad',
         'estado',
         'solicitable_por',
         'descripcion',
@@ -23,6 +27,34 @@ class Equipo extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
+    }
+
+    /**
+     * Carreras para las que se recomienda un espacio. Es orientativo: no limita quién lo pide.
+     */
+    public function programas(): BelongsToMany
+    {
+        return $this->belongsToMany(Programa::class);
+    }
+
+    public function esEspacio(): bool
+    {
+        return (bool) $this->categoria?->esEspacio();
+    }
+
+    /**
+     * Nombres de las carreras recomendadas, sin repetir: un mismo programa existe en varias sedes.
+     *
+     * @return \Illuminate\Support\Collection<int, string>
+     */
+    public function carrerasRecomendadas(): Collection
+    {
+        return $this->programas->pluck('nombre')->unique()->sort()->values();
+    }
+
+    public function recomendadoPara(User $user): bool
+    {
+        return $user->programa_id !== null && $this->programas->contains('id', $user->programa_id);
     }
 
     public function prestamos(): HasMany

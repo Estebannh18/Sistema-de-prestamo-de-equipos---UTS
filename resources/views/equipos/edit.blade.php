@@ -1,5 +1,5 @@
-<x-modulo titulo="Editar equipo o salón" :pendiente="false">
-    <form method="POST" action="{{ route('equipos.update', $equipo) }}" class="max-w-xl">
+<x-modulo :titulo="$tipo === 'espacio' ? 'Editar espacio' : 'Editar equipo'" :pendiente="false">
+    <form method="POST" action="{{ route('equipos.update', $equipo) }}" class="max-w-2xl">
         @csrf
         @method('PUT')
         @include('equipos.formulario')

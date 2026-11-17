@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Categoria;
 use App\Models\Equipo;
+use App\Models\Programa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -33,14 +34,16 @@ class EquipoController extends Controller
                 $query->where('nombre', 'like', "%{$buscar}%")
                     ->orWhere('codigo_inventario', 'like', "%{$buscar}%")
                     ->orWhere('marca', 'like', "%{$buscar}%")
-                    ->orWhere('modelo', 'like', "%{$buscar}%");
+                    ->orWhere('modelo', 'like', "%{$buscar}%")
+                    ->orWhere('ubicacion', 'like', "%{$buscar}%")
+                    ->orWhereHas('programas', fn ($query) => $query->where('nombre', 'like', "%{$buscar}%"));
             }))
             ->when($categoria, fn ($query) => $query->where('categoria_id', $categoria));
 
         $porEstado = (clone $base)->selectRaw('estado, count(*) as total')->groupBy('estado')->pluck('total', 'estado');
 
         $equipos = (clone $base)
-            ->with('categoria')
+            ->with(['categoria', 'programas'])
             ->when($user->esAdministrador(), fn ($query) => $query->withCount('prestamos'))
             ->when($estado, fn ($query) => $query->where('estado', $estado))
             ->orderBy('codigo_inventario')
@@ -52,7 +55,7 @@ class EquipoController extends Controller
             'porEstado' => $porEstado,
             'esPersonal' => $esPersonal,
             'categorias' => Categoria::when($tipo, fn ($query) => $query->where('tipo', $tipo))->orderBy('nombre')->get(),
-            'salones' => Categoria::where('tipo', 'espacio')->orderBy('nombre')->value('id'),
+            'espacios' => Categoria::where('tipo', 'espacio')->orderBy('nombre')->get(),
             'buscar' => $buscar,
             'tipoActual' => $tipo,
             'categoriaActual' => $categoria,
@@ -61,25 +64,29 @@ class EquipoController extends Controller
     }
 
     /**
-     * Muestra el formulario para crear un equipo. Con ?categoria=id llega con esa categoría elegida,
-     * que es como se abre "Crear salón".
+     * Muestra el formulario para crear un equipo o un espacio. Con ?categoria=id llega con esa
+     * categoría elegida (así se abre "Crear espacio"); con ?tipo=espacio, como espacio sin categoría.
      */
     public function create(Request $request): View
     {
-        return view('equipos.create', [
-            'categorias' => Categoria::orderBy('nombre')->get(),
-            'categoriaActual' => $request->query('categoria'),
-        ]);
+        $categoria = Categoria::find($request->query('categoria'));
+        $tipo = $categoria?->tipo ?? ($request->query('tipo') === 'espacio' ? 'espacio' : 'equipo');
+
+        return $this->formulario('equipos.create', null, $tipo, $categoria?->id);
     }
 
     /**
-     * Crea un equipo.
+     * Crea un equipo o un espacio.
      */
     public function store(Request $request): RedirectResponse
     {
-        Equipo::create($request->validate($this->reglas()));
+        $categoria = $this->categoriaElegida($request);
+        $datos = $request->validate($this->reglas($categoria));
 
-        return redirect()->route('equipos.index')->with('status', 'Equipo creado.');
+        $equipo = Equipo::create($this->normalizar($datos, $categoria));
+        $this->guardarCarreras($equipo, $categoria, $datos);
+
+        return redirect()->route('equipos.index')->with('status', $categoria->esEspacio() ? 'Espacio creado.' : 'Equipo creado.');
     }
 
     /**
@@ -93,35 +100,37 @@ class EquipoController extends Controller
             abort_unless($equipo->estaDisponible() && $equipo->permiteSolicitud($user), 403);
         }
 
-        return view('equipos.show', ['equipo' => $equipo]);
+        return view('equipos.show', ['equipo' => $equipo->load(['categoria', 'programas'])]);
     }
 
     /**
-     * Muestra el formulario para editar un equipo.
+     * Muestra el formulario para editar un equipo o un espacio.
      */
     public function edit(Equipo $equipo): View
     {
-        return view('equipos.edit', [
-            'equipo' => $equipo,
-            'categorias' => Categoria::orderBy('nombre')->get(),
-            'categoriaActual' => $equipo->categoria_id,
-        ]);
+        $equipo->load(['categoria', 'programas']);
+
+        return $this->formulario('equipos.edit', $equipo, $equipo->categoria->tipo, $equipo->categoria_id);
     }
 
     /**
-     * Actualiza un equipo. El estado de un equipo prestado no se cambia a mano (RF-17).
+     * Actualiza un equipo o un espacio. El estado de uno prestado no se cambia a mano (RF-17).
      */
     public function update(Request $request, Equipo $equipo): RedirectResponse
     {
-        $reglas = $this->reglas($equipo);
+        $categoria = $this->categoriaElegida($request);
+        $reglas = $this->reglas($categoria, $equipo);
 
         if ($equipo->estado === 'prestado') {
             unset($reglas['estado']);
         }
 
-        $equipo->update($request->validate($reglas));
+        $datos = $request->validate($reglas);
 
-        return redirect()->route('equipos.index')->with('status', 'Equipo actualizado.');
+        $equipo->update($this->normalizar($datos, $categoria));
+        $this->guardarCarreras($equipo, $categoria, $datos);
+
+        return redirect()->route('equipos.index')->with('status', $categoria->esEspacio() ? 'Espacio actualizado.' : 'Equipo actualizado.');
     }
 
     /**
@@ -139,21 +148,89 @@ class EquipoController extends Controller
     }
 
     /**
-     * Validaciones básicas del prototipo; se completan en el módulo Equipos.
+     * Formulario de creación o edición. Solo ofrece las categorías del mismo tipo:
+     * un equipo no se puede mover a una categoría de espacios, ni al revés.
+     */
+    private function formulario(string $vista, ?Equipo $equipo, string $tipo, ?int $categoriaActual): View
+    {
+        return view($vista, [
+            'equipo' => $equipo,
+            'tipo' => $tipo,
+            'categorias' => Categoria::where('tipo', $tipo)->orderBy('nombre')->get(),
+            'categoriaActual' => $categoriaActual,
+            'carreras' => $tipo === 'espacio' ? Programa::orderBy('nombre')->distinct()->pluck('nombre') : collect(),
+        ]);
+    }
+
+    /**
+     * La categoría se valida primero, porque su tipo decide qué otros campos se piden.
+     */
+    private function categoriaElegida(Request $request): Categoria
+    {
+        $request->validate(['categoria_id' => ['required', Rule::exists(Categoria::class, 'id')]]);
+
+        return Categoria::findOrFail($request->input('categoria_id'));
+    }
+
+    /**
+     * Equipos: marca, modelo y quién lo pide. Espacios: ubicación, capacidad y carreras recomendadas;
+     * solo los piden docentes, así que no se pregunta.
      *
      * @return array<string, array<int, mixed>>
      */
-    private function reglas(?Equipo $equipo = null): array
+    private function reglas(Categoria $categoria, ?Equipo $equipo = null): array
     {
-        return [
+        $comunes = [
             'categoria_id' => ['required', Rule::exists(Categoria::class, 'id')],
             'codigo_inventario' => ['required', 'string', 'max:50', Rule::unique(Equipo::class)->ignore($equipo)],
             'nombre' => ['required', 'string', 'max:255'],
-            'marca' => ['nullable', 'string', 'max:255'],
-            'modelo' => ['nullable', 'string', 'max:255'],
             'estado' => ['required', Rule::in(['disponible', 'mantenimiento'])],
-            'solicitable_por' => ['required', Rule::in(['estudiante', 'docente', 'ambos'])],
             'descripcion' => ['nullable', 'string'],
         ];
+
+        if ($categoria->esEspacio()) {
+            return $comunes + [
+                'ubicacion' => ['nullable', 'string', 'max:100'],
+                'capacidad' => ['nullable', 'integer', 'min:1', 'max:1000'],
+                'carreras' => ['nullable', 'array'],
+                'carreras.*' => ['string', Rule::exists(Programa::class, 'nombre')],
+            ];
+        }
+
+        return $comunes + [
+            'marca' => ['nullable', 'string', 'max:255'],
+            'modelo' => ['nullable', 'string', 'max:255'],
+            'solicitable_por' => ['required', Rule::in(['estudiante', 'docente', 'ambos'])],
+        ];
+    }
+
+    /**
+     * Deja vacíos los campos que no corresponden al tipo, por si el equipo cambió de categoría.
+     *
+     * @param  array<string, mixed>  $datos
+     * @return array<string, mixed>
+     */
+    private function normalizar(array $datos, Categoria $categoria): array
+    {
+        unset($datos['carreras']);
+
+        if ($categoria->esEspacio()) {
+            return ['marca' => null, 'modelo' => null, 'solicitable_por' => 'docente'] + $datos;
+        }
+
+        return ['ubicacion' => null, 'capacidad' => null] + $datos;
+    }
+
+    /**
+     * Guarda las carreras recomendadas de un espacio. Se eligen por nombre y se enlazan
+     * todas las sedes de cada programa, para que la recomendación sirva en cualquier sede.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function guardarCarreras(Equipo $equipo, Categoria $categoria, array $datos): void
+    {
+        $nombres = $categoria->esEspacio() ? ($datos['carreras'] ?? []) : [];
+
+        $equipo->programas()->sync(Programa::whereIn('nombre', $nombres)->pluck('id'));
     }
 }

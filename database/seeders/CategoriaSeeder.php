@@ -22,7 +22,8 @@ class CategoriaSeeder extends Seeder
             ['Cámaras', 'equipo', 'camara', 'Cámaras y trípodes para proyectos audiovisuales.'],
             ['Periféricos', 'equipo', 'periferico', 'Presentadores, mouse, teclados y cámaras web.'],
             ['Salones', 'espacio', 'salon', 'Aulas de clase con tablero y video beam instalado.'],
-            ['Laboratorios', 'espacio', 'equipos', 'Salas de cómputo con equipos de escritorio.'],
+            ['Laboratorios', 'espacio', 'equipos', 'Laboratorios y salas especializadas de cada área de formación.'],
+            ['Auditorios', 'espacio', 'salon', 'Espacios para eventos, conferencias y sustentaciones.'],
         ];
 
         foreach ($categorias as [$nombre, $tipo, $icono, $descripcion]) {

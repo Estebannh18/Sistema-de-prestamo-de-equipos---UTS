@@ -20,22 +20,40 @@
 
     {{-- Pestañas por tipo y, para el administrador, los botones de crear --}}
     <div class="flex flex-wrap items-center justify-between gap-4">
-        <nav class="inline-flex rounded-full bg-marca-crema p-1 ring-1 ring-inset ring-marca-linea" aria-label="Tipo">
-            @foreach ($pestanas as $valor => $etiqueta)
-                @php($activa = $tipoActual === ($valor ?: null))
-                <a href="{{ request()->fullUrlWithQuery(['tipo' => $valor ?: null, 'categoria' => null]) }}"
-                   @if ($activa) aria-current="page" @endif
-                   class="rounded-full px-5 py-2 font-display text-sm font-bold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-marca-lima/60 {{ $activa ? 'bg-marca-bosque text-white shadow' : 'text-marca-bosque hover:bg-white' }}">
-                    {{ $etiqueta }}
-                </a>
-            @endforeach
-        </nav>
+        {{-- Los estudiantes no piden espacios, así que para ellos no hay pestañas. --}}
+        @unless ($usuario->esEstudiante())
+            <nav class="inline-flex rounded-full bg-marca-crema p-1 ring-1 ring-inset ring-marca-linea" aria-label="Tipo">
+                @foreach ($pestanas as $valor => $etiqueta)
+                    @php($activa = $tipoActual === ($valor ?: null))
+                    <a href="{{ request()->fullUrlWithQuery(['tipo' => $valor ?: null, 'categoria' => null]) }}"
+                       @if ($activa) aria-current="page" @endif
+                       class="rounded-full px-5 py-2 font-display text-sm font-bold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-marca-lima/60 {{ $activa ? 'bg-marca-bosque text-white shadow' : 'text-marca-bosque hover:bg-white' }}">
+                        {{ $etiqueta }}
+                    </a>
+                @endforeach
+            </nav>
+        @endunless
 
         @if ($usuario->esAdministrador())
             <div class="flex flex-wrap gap-3">
                 <a class="boton-principal text-sm" href="{{ route('equipos.create') }}"><x-icono nombre="mas" class="h-4 w-4" />Crear equipo</a>
-                @if ($salones)
-                    <a class="boton-principal text-sm" href="{{ route('equipos.create', ['categoria' => $salones]) }}"><x-icono nombre="salon" class="h-4 w-4" />Crear salón</a>
+                @if ($espacios->isNotEmpty())
+                    {{-- Un espacio va en una de las categorías de tipo espacio (Salones, Laboratorios...): se elige aquí. --}}
+                    <x-dropdown align="right" width="w-60">
+                        <x-slot name="trigger">
+                            <button type="button" class="boton-principal text-sm" aria-haspopup="true">
+                                <x-icono nombre="salon" class="h-4 w-4" />Crear espacio<x-icono nombre="abajo" class="h-4 w-4" />
+                            </button>
+                        </x-slot>
+                        <x-slot name="content">
+                            <p class="px-4 pb-1 pt-2 font-display text-xs font-bold uppercase tracking-wider text-marca-suave">¿En qué categoría?</p>
+                            @foreach ($espacios as $espacio)
+                                <x-dropdown-link :href="route('equipos.create', ['categoria' => $espacio->id])">
+                                    <x-icono :nombre="$espacio->iconoVisible()" class="h-5 w-5 text-marca-oliva" />{{ $espacio->nombre }}
+                                </x-dropdown-link>
+                            @endforeach
+                        </x-slot>
+                    </x-dropdown>
                 @endif
             </div>
         @endif
@@ -53,7 +71,7 @@
             <x-input-label for="buscar" value="Buscar" />
             <div class="relative mt-1">
                 <x-icono nombre="buscar" class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-marca-gris" />
-                <x-text-input id="buscar" name="buscar" type="search" class="block w-full pl-10" :value="$buscar" placeholder="Nombre, código, marca o modelo" />
+                <x-text-input id="buscar" name="buscar" type="search" class="block w-full pl-10" :value="$buscar" placeholder="Nombre, código, marca, modelo o carrera" />
             </div>
         </div>
         <div>
@@ -115,20 +133,58 @@
 
             <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 @foreach ($equipos as $equipo)
-                    <article class="flex flex-col rounded-3xl border border-marca-linea bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-16px_rgba(11,61,42,0.45)]">
+                    {{-- Variables en línea a propósito: un bloque de PHP de varias líneas después de uno en línea confunde a Blade. --}}
+                    @php($carreras = $equipo->carrerasRecomendadas())
+                    @php($paraMi = $equipo->recomendadoPara($usuario))
+                    <article class="flex flex-col rounded-3xl border bg-white p-5 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-16px_rgba(11,61,42,0.45)] {{ $paraMi ? 'border-marca-lima ring-2 ring-marca-lima/50' : 'border-marca-linea' }}">
                         <div class="flex items-center justify-between gap-3">
                             <span class="rounded-lg bg-marca-crema px-2 py-0.5 font-mono text-xs font-semibold text-marca-suave ring-1 ring-inset ring-marca-linea">{{ $equipo->codigo_inventario }}</span>
                             <span class="insignia insignia-{{ $equipo->estado }}">{{ $equipo->estado }}</span>
                         </div>
 
+                        @if ($paraMi)
+                            <p class="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-marca-lima px-2.5 py-0.5 font-display text-xs font-bold text-marca-noche">
+                                <x-icono nombre="estrella" class="h-3.5 w-3.5" />Recomendado para tu programa
+                            </p>
+                        @endif
+
                         <h3 class="mt-3 font-display text-base font-extrabold leading-snug text-marca-noche">
                             <a href="{{ route('equipos.show', $equipo) }}" class="hover:text-marca-oliva focus:outline-none focus-visible:underline">{{ $equipo->nombre }}</a>
                         </h3>
-                        @if ($equipo->marca || $equipo->modelo)
+                        @if ($categoria->esEspacio())
+                            @if ($equipo->ubicacion || $equipo->capacidad)
+                                <p class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-marca-suave">
+                                    @if ($equipo->ubicacion)
+                                        <span class="flex items-center gap-1"><x-icono nombre="ubicacion" class="h-4 w-4" />{{ $equipo->ubicacion }}</span>
+                                    @endif
+                                    @if ($equipo->capacidad)
+                                        <span class="flex items-center gap-1 tabular-nums"><x-icono nombre="usuarios" class="h-4 w-4" />{{ $equipo->capacidad }} personas</span>
+                                    @endif
+                                </p>
+                            @endif
+                        @elseif ($equipo->marca || $equipo->modelo)
                             <p class="text-sm text-marca-suave">{{ collect([$equipo->marca, $equipo->modelo])->filter()->implode(' · ') }}</p>
                         @endif
                         @if ($equipo->descripcion)
                             <p class="mt-2 line-clamp-2 text-sm text-marca-noche/80">{{ $equipo->descripcion }}</p>
+                        @endif
+
+                        @if ($carreras->isNotEmpty())
+                            <div class="mt-3">
+                                <p class="flex items-center gap-1.5 text-xs font-bold text-marca-bosque"><x-icono nombre="graduado" class="h-4 w-4" />Recomendado para</p>
+                                <ul class="mt-1.5 flex flex-wrap gap-1.5">
+                                    @foreach ($carreras->take(2) as $carrera)
+                                        <li class="rounded-full bg-marca-limaclaro px-2.5 py-0.5 text-xs font-semibold text-marca-bosque">{{ $carrera }}</li>
+                                    @endforeach
+                                    @if ($carreras->count() > 2)
+                                        {{-- El resto se ve en el detalle; aquí se resumen en el título, para no desbordar la tarjeta. --}}
+                                        <li class="cursor-help rounded-full bg-marca-crema px-2.5 py-0.5 text-xs font-semibold text-marca-suave ring-1 ring-inset ring-marca-linea"
+                                            title="{{ $carreras->slice(2)->implode(', ') }}">
+                                            +{{ $carreras->count() - 2 }} <span class="sr-only">más: {{ $carreras->slice(2)->implode(', ') }}</span>
+                                        </li>
+                                    @endif
+                                </ul>
+                            </div>
                         @endif
 
                         <div class="mt-auto pt-4">
