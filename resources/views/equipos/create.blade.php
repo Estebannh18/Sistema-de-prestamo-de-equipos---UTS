@@ -3,7 +3,7 @@
         <p class="aviso-error">Primero crea una <a class="underline" href="{{ route('categorias.create') }}">categoría</a> de {{ $tipo === 'espacio' ? 'espacios' : 'equipos' }}.</p>
     @endif
 
-    <form method="POST" action="{{ route('equipos.store') }}" class="max-w-2xl">
+    <form method="POST" action="{{ route('equipos.store') }}">
         @csrf
         @include('equipos.formulario')
         <div class="mt-5 flex items-center gap-4">

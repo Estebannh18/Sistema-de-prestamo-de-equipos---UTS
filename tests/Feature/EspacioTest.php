@@ -70,7 +70,7 @@ class EspacioTest extends TestCase
             ->assertDontSee('<option value="'.$this->laboratorios->id.'"', false);
     }
 
-    public function test_el_administrador_crea_un_espacio_con_carreras_recomendadas_en_todas_sus_sedes(): void
+    public function test_el_administrador_crea_un_espacio_con_carreras_habilitadas_en_todas_sus_sedes(): void
     {
         // Un nombre que no está en la lista oficial que carga la migración, para controlar cuántas sedes hay.
         $bucaramanga = Programa::factory()->create(['nombre' => 'Ingeniería de Prueba', 'sede' => 'Bucaramanga']);
@@ -90,7 +90,8 @@ class EspacioTest extends TestCase
         ])->assertRedirect('/equipos');
 
         $laboratorio = Equipo::where('codigo_inventario', 'LAB-301')->firstOrFail();
-        $this->assertSame('docente', $laboratorio->solicitable_por);
+        // Con carreras lo piden los docentes y los estudiantes de esas carreras.
+        $this->assertSame('ambos', $laboratorio->solicitable_por);
         $this->assertNull($laboratorio->marca);
         $this->assertSame(24, $laboratorio->capacidad);
         $this->assertEqualsCanonicalizing([$bucaramanga->id, $virtual->id], $laboratorio->programas->pluck('id')->all());
@@ -131,7 +132,7 @@ class EspacioTest extends TestCase
         $this->assertDatabaseMissing('equipos', ['codigo_inventario' => 'LAB-399']);
     }
 
-    public function test_el_docente_ve_los_espacios_recomendados_para_su_programa(): void
+    public function test_el_docente_ve_todos_los_espacios_y_cuales_son_de_su_carrera(): void
     {
         $laboratorio = $this->laboratorioIa();
         $deSistemas = User::factory()->create(['rol' => 'docente', 'programa_id' => $laboratorio->programas->first()->id]);
@@ -139,13 +140,13 @@ class EspacioTest extends TestCase
 
         $this->actingAs($deSistemas)->get('/equipos')
             ->assertSee('Laboratorio de Inteligencia Artificial')
-            ->assertSeeText('Recomendado para tu programa')
+            ->assertSeeText('De tu carrera')
             ->assertSee('Ingeniería de Sistemas');
 
-        // La recomendación es orientativa: otro docente también lo ve y lo puede pedir.
+        // Para los docentes la carrera no restringe: otro docente también lo ve y lo puede pedir.
         $this->actingAs($deOtroPrograma)->get('/equipos')
             ->assertSee('Laboratorio de Inteligencia Artificial')
-            ->assertDontSeeText('Recomendado para tu programa')
+            ->assertDontSeeText('De tu carrera')
             ->assertSee(route('prestamos.create', ['equipo' => $laboratorio->id]), false);
     }
 
@@ -157,12 +158,24 @@ class EspacioTest extends TestCase
             ->assertSee('LAB-301');
     }
 
-    public function test_los_estudiantes_no_ven_espacios_ni_pestanas(): void
+    public function test_el_estudiante_solo_ve_los_espacios_habilitados_para_su_carrera(): void
     {
-        $this->laboratorioIa();
+        $laboratorio = $this->laboratorioIa();
+        $sinCarreras = Equipo::create(['categoria_id' => $this->laboratorios->id, 'codigo_inventario' => 'LAB-999', 'nombre' => 'Sala sin carreras', 'solicitable_por' => 'docente']);
+        $deSistemas = User::factory()->create(['rol' => 'estudiante', 'programa_id' => $laboratorio->programas->first()->id]);
+        $deOtra = User::factory()->create(['rol' => 'estudiante', 'programa_id' => Programa::factory()->create()->id]);
 
-        $this->actingAs(User::factory()->create(['rol' => 'estudiante']))->get('/equipos')
-            ->assertDontSee('LAB-301')
-            ->assertDontSee('aria-label="Tipo"', false);
+        $this->actingAs($deSistemas)->get('/equipos')
+            ->assertSee('LAB-301')->assertDontSee('LAB-999')
+            ->assertSee('aria-label="Tipo"', false);
+        $this->assertTrue($laboratorio->permiteSolicitud($deSistemas));
+
+        $this->actingAs($deOtra)->get('/equipos')->assertDontSee('LAB-301')->assertDontSee('LAB-999');
+        $this->assertFalse($laboratorio->permiteSolicitud($deOtra));
+        $this->actingAs($deOtra)->get("/equipos/{$laboratorio->id}")->assertForbidden();
+
+        // Un espacio sin carreras solo lo piden docentes.
+        $this->assertFalse($sinCarreras->permiteSolicitud($deSistemas));
+        $this->assertTrue($sinCarreras->permiteSolicitud(User::factory()->create(['rol' => 'docente'])));
     }
 }

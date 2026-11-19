@@ -3,16 +3,18 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="{{ asset('images/favicon-uts.png') }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/favicon-uts.png') }}">
 
-        <title>Proyecto final en construcción | {{ config('app.name') }}</title>
-        <meta name="description" content="Proyecto final del tercer corte: sistema de gestión de préstamo de equipos, en construcción.">
+        <title>Equipos y salones | {{ config('app.name') }}</title>
+        <meta name="description" content="Sistema de gestión de préstamo de equipos y salones: solicitud, aprobación, entrega y devolución.">
 
         @include('layouts.fuentes')
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased bg-marca-crema text-marca-tinta">
-        {{-- Portada provisional: no es el diseño definitivo. --}}
+        {{-- Portada pública del sistema --}}
         <div class="bg-marca-noche text-white/85 text-sm">
             <div class="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap justify-between gap-x-6">
                 <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-marca-lima" aria-hidden="true"></span>Proyecto Final Integrador · Grupo 5</span>
@@ -71,17 +73,17 @@
                 <div class="max-w-xl">
                     <span class="inline-flex items-center gap-2 rounded-full bg-marca-lima px-4 py-1.5 font-display text-sm font-extrabold text-marca-noche">
                         <span class="h-2 w-2 rounded-full bg-marca-noche" aria-hidden="true"></span>
-                        Página provisional
+                        Sistema de gestión
                     </span>
 
                     <h1 class="mt-6 font-display font-black text-4xl sm:text-6xl leading-[1.05] tracking-tight">
-                        Proyecto final
-                        <span class="block">del tercer corte</span>
-                        <span class="mt-1 inline-block rounded-2xl bg-marca-lima px-3 pb-1 text-marca-noche -rotate-1">en construcción</span>
+                        Préstamo de
+                        <span class="block">equipos y salones</span>
+                        <span class="mt-1 inline-block rounded-2xl bg-marca-lima px-3 pb-1 text-marca-noche -rotate-1">en un solo lugar</span>
                     </h1>
 
                     <p class="mt-7 text-lg text-white/85 leading-relaxed">
-                        Aquí estará el sistema para gestionar el préstamo de equipos y salones. Esta portada es temporal: el diseño definitivo se definirá más adelante.
+                        Solicita equipos y salones, consulta su disponibilidad por bloques de horario y sigue el estado de tus préstamos. Los funcionarios aprueban, entregan y reciben desde la misma plataforma.
                     </p>
 
                     <div class="mt-9 flex flex-wrap gap-4">
@@ -95,22 +97,24 @@
                 </div>
             </div>
 
-            {{-- Cinta de obra --}}
+            {{-- Cinta con el recorrido de un préstamo --}}
             <div class="absolute -left-[5%] bottom-12 w-[110%] -rotate-2 border-y-4 border-marca-noche bg-marca-lima py-2.5 text-marca-noche shadow-[0_10px_0_0_rgba(11,61,42,0.35)]" aria-hidden="true">
                 <div class="whitespace-nowrap text-center font-display font-black text-sm tracking-[.2em] uppercase">
-                    @for ($i = 0; $i < 8; $i++)
-                        <span class="mx-4">En construcción</span><span>◆</span>
+                    @for ($i = 0; $i < 3; $i++)
+                        @foreach (['Solicita', 'Aprueba', 'Entrega', 'Devuelve'] as $paso)
+                            <span class="mx-4">{{ $paso }}</span><span>◆</span>
+                        @endforeach
                     @endfor
                 </div>
             </div>
         </section>
 
         <main id="proyecto" class="max-w-6xl mx-auto px-4 sm:px-6 py-14">
-            <p class="max-w-3xl text-xl font-semibold leading-relaxed text-marca-noche">Prototipo académico para controlar la solicitud, la entrega y la devolución de equipos y salones. Usa datos de prueba.</p>
+            <p class="max-w-3xl text-xl font-semibold leading-relaxed text-marca-noche">Una plataforma para controlar la solicitud, la aprobación, la entrega y la devolución de equipos y salones.</p>
 
             <div class="mt-10 grid gap-6 lg:grid-cols-3">
                 <section class="tarjeta lg:col-span-2">
-                    <h2 class="titulo-seccion">Qué incluirá</h2>
+                    <h2 class="titulo-seccion">Qué ofrece</h2>
                     <ul class="mt-6 grid gap-4 sm:grid-cols-2">
                         @foreach ([
                             ['Solicitud de equipos y salones', 'solicitud'],
@@ -158,7 +162,7 @@
             <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-wrap items-center justify-between gap-3">
                 <span class="flex items-center gap-3">
                     <x-application-logo class="h-8 w-8" />
-                    Proyecto académico en construcción. Esta página no es un sitio oficial de la institución.
+                    Proyecto académico. Esta página no es un sitio oficial de la institución.
                 </span>
             </div>
         </footer>

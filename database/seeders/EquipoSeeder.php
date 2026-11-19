@@ -82,19 +82,21 @@ class EquipoSeeder extends Seeder
             ]);
         }
 
-        // Espacios: solo los piden docentes. [categoría, código, nombre, ubicación, capacidad, estado inicial, descripción, carreras recomendadas]
+        // Espacios. Los docentes piden cualquiera; los estudiantes, solo los habilitados para su carrera.
+        // [categoría, código, nombre, ubicación, capacidad, estado inicial, descripción, carreras habilitadas]
+        // ['*'] = todas las carreras; [] = ninguna (solo docentes).
         $espacios = [
-            ['Salones', 'SAL-301', 'Salón 301', 'Edificio A, piso 3', 40, 'disponible', 'Video beam instalado.', []],
-            ['Salones', 'SAL-302', 'Salón 302', 'Edificio A, piso 3', 35, 'disponible', null, []],
-            ['Salones', 'SAL-303', 'Salón 303', 'Edificio A, piso 3', 40, 'disponible', 'Video beam instalado.', []],
+            ['Salones', 'SAL-301', 'Salón 301', 'Edificio A, piso 3', 40, 'disponible', 'Video beam instalado.', ['*']],
+            ['Salones', 'SAL-302', 'Salón 302', 'Edificio A, piso 3', 35, 'disponible', null, ['*']],
+            ['Salones', 'SAL-303', 'Salón 303', 'Edificio A, piso 3', 40, 'disponible', 'Video beam instalado.', ['*']],
             ['Salones', 'SAL-401', 'Salón 401', 'Edificio A, piso 4', 45, 'mantenimiento', 'Adecuación del sistema de sonido.', []],
             ['Salones', 'SAL-402', 'Salón de dibujo técnico', 'Edificio B, piso 4', 30, 'disponible', 'Mesas de dibujo y tablero amplio.', [
                 'Ingeniería Civil', 'Ingeniería en Topografía', 'Tecnología en Construcción de Obras Civiles', 'Ingeniería Industrial',
             ]],
             ['Salones', 'SAL-501', 'Sala de juntas', 'Edificio C, piso 5', 12, 'disponible', 'Mesa de reuniones y pantalla de 65 pulgadas.', []],
 
-            ['Laboratorios', 'LAB-201', 'Laboratorio de cómputo 201', 'Edificio B, piso 2', 25, 'disponible', '25 equipos de escritorio con paquete ofimático.', []],
-            ['Laboratorios', 'LAB-202', 'Laboratorio de cómputo 202', 'Edificio B, piso 2', 30, 'disponible', '30 equipos de escritorio con paquete ofimático.', []],
+            ['Laboratorios', 'LAB-201', 'Laboratorio de cómputo 201', 'Edificio B, piso 2', 25, 'disponible', '25 equipos de escritorio con paquete ofimático.', ['*']],
+            ['Laboratorios', 'LAB-202', 'Laboratorio de cómputo 202', 'Edificio B, piso 2', 30, 'disponible', '30 equipos de escritorio con paquete ofimático.', ['*']],
             ['Laboratorios', 'LAB-301', 'Laboratorio de Inteligencia Artificial', 'Edificio B, piso 3', 24, 'disponible', 'Equipos con GPU para entrenamiento de modelos y análisis de datos.', [
                 'Ingeniería de Sistemas', 'Ingeniería en Inteligencia Artificial y Ciencia de Datos', 'Tecnología en Desarrollo de Sistemas Informáticos', 'Tecnología en Análisis y Gestión de Datos',
             ]],
@@ -143,12 +145,13 @@ class EquipoSeeder extends Seeder
                 'modelo' => null,
                 'ubicacion' => $ubicacion,
                 'capacidad' => $capacidad,
-                'solicitable_por' => 'docente',
+                'solicitable_por' => $carreras === [] ? 'docente' : 'ambos',
                 'descripcion' => $descripcion,
             ]);
 
-            // Se enlazan todas las sedes de cada carrera.
-            $espacio->programas()->sync(Programa::whereIn('nombre', $carreras)->pluck('id'));
+            // Se enlazan todas las sedes de cada carrera; ['*'] enlaza todos los programas.
+            $programas = $carreras === ['*'] ? Programa::pluck('id') : Programa::whereIn('nombre', $carreras)->pluck('id');
+            $espacio->programas()->sync($programas);
         }
     }
 

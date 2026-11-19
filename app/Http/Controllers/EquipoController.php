@@ -100,7 +100,7 @@ class EquipoController extends Controller
             abort_unless($equipo->estaDisponible() && $equipo->permiteSolicitud($user), 403);
         }
 
-        return view('equipos.show', ['equipo' => $equipo->load(['categoria', 'programas'])]);
+        return view('equipos.show', ['equipo' => $equipo->load(['categoria', 'programas', 'horarios'])]);
     }
 
     /**
@@ -173,8 +173,8 @@ class EquipoController extends Controller
     }
 
     /**
-     * Equipos: marca, modelo y quién lo pide. Espacios: ubicación, capacidad y carreras recomendadas;
-     * solo los piden docentes, así que no se pregunta.
+     * Equipos: marca, modelo y quién lo pide. Espacios: ubicación, capacidad y carreras habilitadas;
+     * quién lo pide sale de las carreras (sin carreras, solo docentes), así que no se pregunta.
      *
      * @return array<string, array<int, mixed>>
      */
@@ -212,18 +212,20 @@ class EquipoController extends Controller
      */
     private function normalizar(array $datos, Categoria $categoria): array
     {
+        $conCarreras = ! empty($datos['carreras']);
         unset($datos['carreras']);
 
         if ($categoria->esEspacio()) {
-            return ['marca' => null, 'modelo' => null, 'solicitable_por' => 'docente'] + $datos;
+            // Con carreras lo piden docentes y los estudiantes de esas carreras; sin carreras, solo docentes.
+            return ['marca' => null, 'modelo' => null, 'solicitable_por' => $conCarreras ? 'ambos' : 'docente'] + $datos;
         }
 
         return ['ubicacion' => null, 'capacidad' => null] + $datos;
     }
 
     /**
-     * Guarda las carreras recomendadas de un espacio. Se eligen por nombre y se enlazan
-     * todas las sedes de cada programa, para que la recomendación sirva en cualquier sede.
+     * Guarda las carreras habilitadas de un espacio. Se eligen por nombre y se enlazan
+     * todas las sedes de cada programa, para que sirva a los estudiantes de cualquier sede.
      *
      * @param  array<string, mixed>  $datos
      */

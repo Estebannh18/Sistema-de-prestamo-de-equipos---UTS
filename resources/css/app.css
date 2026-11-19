@@ -122,7 +122,8 @@
         @apply bg-rose-100 text-rose-800 ring-rose-200;
     }
 
-    .insignia-devuelto {
+    .insignia-devuelto,
+    .insignia-cancelado {
         @apply bg-slate-100 text-slate-700 ring-slate-200;
     }
 
@@ -150,7 +151,8 @@
     .insignia-pendiente::before,
     .insignia-rechazado::before,
     .insignia-vencido::before,
-    .insignia-devuelto::before {
+    .insignia-devuelto::before,
+    .insignia-cancelado::before {
         content: '';
         @apply h-1.5 w-1.5 rounded-full bg-current;
     }

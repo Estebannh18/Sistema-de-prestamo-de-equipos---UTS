@@ -3,6 +3,8 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="{{ asset('images/favicon-uts.png') }}">
+        <link rel="apple-touch-icon" href="{{ asset('images/favicon-uts.png') }}">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Laravel') }}</title>
@@ -31,8 +33,8 @@
                     Préstamo de equipos
                 </a>
                 <div class="relative mb-24">
-                    <p class="font-display text-5xl font-black leading-[1.05] tracking-tight">Proyecto final del tercer corte</p>
-                    <p class="mt-4 inline-block -rotate-1 rounded-2xl bg-marca-lima px-3 pb-1 font-display text-3xl font-black text-marca-noche">en construcción</p>
+                    <p class="font-display text-5xl font-black leading-[1.05] tracking-tight">Equipos y salones</p>
+                    <p class="mt-4 inline-block -rotate-1 rounded-2xl bg-marca-lima px-3 pb-1 font-display text-3xl font-black text-marca-noche">cuando los necesitas</p>
                 </div>
             </aside>
 

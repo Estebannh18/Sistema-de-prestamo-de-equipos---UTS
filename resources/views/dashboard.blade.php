@@ -4,9 +4,10 @@
         'categorias.index' => 'categorias',
         'equipos.index' => 'equipos',
         'prestamos.index' => 'prestamos',
-        'prestamos.create' => 'solicitud',
         'reportes.prestamos' => 'reporte',
         'noticias.index' => 'noticias',
+        'prestamos.pendientes' => 'reloj',
+        'configuracion.edit' => 'ajustes',
         'seguridad.2fa' => 'seguridad',
     ];
     // Colores de las tarjetas de módulos, en el orden del menú

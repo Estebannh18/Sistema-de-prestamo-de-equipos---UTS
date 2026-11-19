@@ -5,11 +5,14 @@
         'categorias.index' => 'categorias',
         'equipos.index' => 'equipos',
         'prestamos.index' => 'prestamos',
-        'prestamos.create' => 'solicitud',
         'reportes.prestamos' => 'reporte',
         'noticias.index' => 'noticias',
+        'prestamos.pendientes' => 'reloj',
+        'configuracion.edit' => 'ajustes',
         'seguridad.2fa' => 'seguridad',
     ];
+    // Rutas que también marcan como activa una opción del menú (Solicitudes abarca crear y ver una solicitud).
+    $tambienActiva = ['prestamos.index' => ['prestamos.create', 'prestamos.show']];
     $iniciales = collect(explode(' ', Auth::user()->name))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('');
 @endphp
 
@@ -18,7 +21,7 @@
     <div class="bg-marca-noche text-white/85 text-xs">
         <div class="max-w-7xl mx-auto flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-1.5">
             <span class="h-2 w-2 rounded-full bg-marca-lima" aria-hidden="true"></span>
-            Proyecto Final Integrador · En construcción
+            Proyecto Final Integrador · Grupo 5
         </div>
     </div>
 
@@ -37,6 +40,10 @@
                         </span>
                     </span>
                 </a>
+
+                <div class="flex items-center gap-3">
+                {{-- Campana de notificaciones (en computador y en celular) --}}
+                <x-campana />
 
                 {{-- Menú del usuario --}}
                 <div class="hidden lg:flex lg:items-center">
@@ -84,6 +91,7 @@
                         </svg>
                     </button>
                 </div>
+                </div>
             </div>
         </div>
     </div>
@@ -91,13 +99,13 @@
     {{-- Barra de navegación horizontal --}}
     <div class="hidden bg-marca-bosque lg:block">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-1 py-2.5">
+            <div class="flex flex-wrap items-center gap-1 py-2.5">
                 <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                     <x-icono nombre="inicio" class="h-[18px] w-[18px]" />
                     Inicio
                 </x-nav-link>
                 @foreach (Auth::user()->modulos() as $etiqueta => $ruta)
-                    <x-nav-link :href="route($ruta)" :active="request()->routeIs($ruta)">
+                    <x-nav-link :href="route($ruta)" :active="request()->routeIs($ruta, ...($tambienActiva[$ruta] ?? []))">
                         <x-icono :nombre="$iconos[$ruta] ?? 'info'" class="h-[18px] w-[18px]" />
                         {{ $etiqueta }}
                     </x-nav-link>
@@ -115,7 +123,7 @@
                 Inicio
             </x-responsive-nav-link>
             @foreach (Auth::user()->modulos() as $etiqueta => $ruta)
-                <x-responsive-nav-link :href="route($ruta)" :active="request()->routeIs($ruta)">
+                <x-responsive-nav-link :href="route($ruta)" :active="request()->routeIs($ruta, ...($tambienActiva[$ruta] ?? []))">
                     <x-icono :nombre="$iconos[$ruta] ?? 'info'" class="h-5 w-5" />
                     {{ $etiqueta }}
                 </x-responsive-nav-link>

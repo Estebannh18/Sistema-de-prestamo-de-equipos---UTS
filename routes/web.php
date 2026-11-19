@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\HorarioController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\NoticiaController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ProfileController;
@@ -11,7 +14,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Models\Noticia;
 use Illuminate\Support\Facades\Route;
 
-// Portada provisional: el proyecto aún está en construcción.
+// Portada pública del sistema.
 Route::view('/', 'inicio')->name('inicio');
 
 // Inicio de cada usuario: sus módulos y las 3 noticias más recientes.
@@ -35,13 +38,22 @@ Route::middleware('auth')->group(function () {
         Route::patch('usuarios/{usuario}/restablecer-2fa', [UsuarioController::class, 'restablecerDosFactores'])->name('usuarios.restablecer2fa');
         Route::resource('categorias', CategoriaController::class);
         Route::resource('equipos', EquipoController::class)->except(['index', 'show']);
+        // Horarios de cada espacio o equipo: bloques de horas por día, de lunes a sábado.
+        Route::get('equipos/{equipo}/horarios', [HorarioController::class, 'edit'])->name('horarios.edit');
+        Route::put('equipos/{equipo}/horarios', [HorarioController::class, 'update'])->name('horarios.update');
+        // Módulo Configuración: máximos, tiempo para cancelar y anticipación mínima.
+        Route::get('configuracion', [ConfiguracionController::class, 'edit'])->name('configuracion.edit');
+        Route::put('configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.update');
     });
 
     Route::middleware('rol:estudiante,docente')->group(function () {
         Route::resource('prestamos', PrestamoController::class)->only(['create', 'store']);
+        Route::patch('prestamos/{prestamo}/cancelar', [PrestamoController::class, 'cancelar'])->name('prestamos.cancelar');
     });
 
     Route::middleware('rol:administrador,funcionario')->group(function () {
+        // Solicitudes por aprobar: los funcionarios reciben aviso; el administrador las ve y las puede atender.
+        Route::get('prestamos/pendientes', [PrestamoController::class, 'pendientes'])->name('prestamos.pendientes');
         Route::patch('prestamos/{prestamo}/aprobar', [PrestamoController::class, 'aprobar'])->name('prestamos.aprobar');
         Route::patch('prestamos/{prestamo}/rechazar', [PrestamoController::class, 'rechazar'])->name('prestamos.rechazar');
         Route::patch('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
@@ -53,6 +65,12 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('equipos', EquipoController::class)->only(['index', 'show']);
     Route::resource('prestamos', PrestamoController::class)->only(['index', 'show']);
+
+    // Notificaciones dentro de la app (campana y bandeja).
+    Route::get('notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::get('notificaciones/resumen', [NotificacionController::class, 'resumen'])->name('notificaciones.resumen');
+    Route::post('notificaciones/leer-todas', [NotificacionController::class, 'leerTodas'])->name('notificaciones.leer-todas');
+    Route::post('notificaciones/{id}/abrir', [NotificacionController::class, 'abrir'])->name('notificaciones.abrir');
     // Las noticias y sus archivos los ven todos los usuarios con sesión iniciada.
     Route::get('noticias/adjuntos/{adjunto}', [NoticiaController::class, 'adjunto'])->name('noticias.adjunto');
     Route::resource('noticias', NoticiaController::class)->only(['index', 'show']);

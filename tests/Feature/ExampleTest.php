@@ -14,6 +14,10 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertOk()->assertSee('Proyecto final del tercer corte')->assertSee('en construcción');
+        $response->assertOk()
+            ->assertSee('equipos y salones')
+            ->assertSee('en un solo lugar')
+            ->assertDontSee('construcción')
+            ->assertDontSee('provisional');
     }
 }
