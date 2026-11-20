@@ -9,6 +9,7 @@ use App\Models\Configuracion;
 use App\Models\Equipo;
 use App\Models\Horario;
 use App\Models\Prestamo;
+use App\Models\Programa;
 use App\Services\PrestamoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -166,33 +167,109 @@ class PrestamoController extends Controller
             'prestamo' => $prestamo,
             'esPersonal' => $user->esAdministrador() || $user->esFuncionario(),
             'choques' => $user->can('atender', $prestamo) ? $this->servicio->choques($prestamo) : collect(),
+            'volver' => $this->filtrosParaVolver($request),
         ]);
     }
 
     /**
-     * Solicitudes por aprobar (funcionario y administrador). Las pendientes, de la más antigua a la más reciente.
+     * Órdenes de «Solicitudes por aprobar»: clave => etiqueta.
+     */
+    public const ORDENES_PENDIENTES = [
+        'antiguas' => 'Más antigua primero',
+        'recientes' => 'Más reciente primero',
+        'proximas' => 'Préstamo más próximo primero',
+        'lejanas' => 'Préstamo más lejano primero',
+    ];
+
+    /** Filtros de «Solicitudes por aprobar» que se conservan al aprobar o rechazar. */
+    private const FILTROS_PENDIENTES = ['tipo', 'perfil', 'categoria', 'programa', 'fecha', 'buscar', 'choques', 'orden', 'page'];
+
+    /**
+     * Solicitudes por aprobar (funcionario y administrador), con búsqueda, filtros y orden.
      */
     public function pendientes(Request $request): View
     {
         Gate::authorize('atender', Prestamo::class);
 
         $tipo = in_array($request->query('tipo'), ['espacio', 'equipo'], true) ? $request->query('tipo') : null;
+        $perfil = in_array($request->query('perfil'), ['estudiante', 'docente'], true) ? $request->query('perfil') : null;
+        $categoria = Categoria::find(filter_var($request->query('categoria'), FILTER_VALIDATE_INT) ?: 0);
+        if ($categoria && $tipo && $categoria->tipo !== $tipo) {
+            $categoria = null; // La categoría elegida no es del tipo elegido.
+        }
+        $programa = Programa::find(filter_var($request->query('programa'), FILTER_VALIDATE_INT) ?: 0);
         $fecha = rescue(fn () => $request->filled('fecha') ? Carbon::createFromFormat('Y-m-d', $request->query('fecha'))->toDateString() : null, null, false);
+        $buscar = mb_substr(trim((string) $request->query('buscar')), 0, 80);
+        $soloChoques = $request->boolean('choques');
+        $orden = array_key_exists((string) $request->query('orden'), self::ORDENES_PENDIENTES) ? $request->query('orden') : 'antiguas';
 
         $pendientes = Prestamo::with(['equipo.categoria', 'solicitante.programa'])
             ->where('estado', 'pendiente')
             ->when($tipo, fn ($query) => $query->deTipo($tipo === 'espacio'))
+            ->when($perfil, fn ($query) => $query->whereHas('solicitante', fn ($query) => $query->where('rol', $perfil)))
+            ->when($categoria, fn ($query) => $query->whereHas('equipo', fn ($query) => $query->where('categoria_id', $categoria->id)))
+            ->when($programa, fn ($query) => $query->whereHas('solicitante', fn ($query) => $query->where('programa_id', $programa->id)))
             ->when($fecha, fn ($query) => $query->whereDate('fecha', $fecha))
-            ->orderBy('created_at')->orderBy('id')
+            ->when($buscar !== '', fn ($query) => $query->where(fn ($query) => $query
+                ->whereHas('solicitante', fn ($query) => $query->where(fn ($query) => $query
+                    ->where('name', 'like', "%{$buscar}%")->orWhere('email', 'like', "%{$buscar}%")->orWhere('documento', 'like', "%{$buscar}%")))
+                ->orWhereHas('equipo', fn ($query) => $query->where(fn ($query) => $query
+                    ->where('nombre', 'like', "%{$buscar}%")->orWhere('codigo_inventario', 'like', "%{$buscar}%")))))
+            ->when($soloChoques, fn ($query) => $query->whereExists(fn ($otras) => $otras
+                ->from('prestamos as otras')
+                ->whereColumn('otras.equipo_id', 'prestamos.equipo_id')
+                ->whereColumn('otras.fecha', 'prestamos.fecha')
+                ->whereColumn('otras.hora_inicio', '<', 'prestamos.hora_fin')
+                ->whereColumn('otras.hora_fin', '>', 'prestamos.hora_inicio')
+                ->whereColumn('otras.id', '<>', 'prestamos.id')
+                ->whereIn('otras.estado', Prestamo::ACTIVOS)))
+            ->tap(fn ($query) => match ($orden) {
+                'recientes' => $query->orderByDesc('created_at')->orderByDesc('id'),
+                'proximas' => $query->orderBy('fecha')->orderBy('hora_inicio')->orderBy('created_at'),
+                'lejanas' => $query->orderByDesc('fecha')->orderByDesc('hora_inicio')->orderBy('created_at'),
+                default => $query->orderBy('created_at')->orderBy('id'),
+            })
             ->paginate(15)
             ->withQueryString();
 
         return view('prestamos.pendientes', [
             'pendientes' => $pendientes,
             'choques' => $pendientes->getCollection()->mapWithKeys(fn (Prestamo $p) => [$p->id => $this->servicio->choques($p)]),
-            'tipoActual' => $tipo,
-            'fechaActual' => $fecha,
+            'filtros' => array_filter([
+                'tipo' => $tipo,
+                'perfil' => $perfil,
+                'categoria' => $categoria?->id,
+                'programa' => $programa?->id,
+                'fecha' => $fecha,
+                'buscar' => $buscar,
+                'choques' => $soloChoques ? 1 : null,
+                'orden' => $orden === 'antiguas' ? null : $orden,
+            ], fn ($valor) => $valor !== null && $valor !== ''),
+            'categoriaActual' => $categoria,
+            'programaActual' => $programa,
+            'categorias' => Categoria::when($tipo, fn ($query) => $query->where('tipo', $tipo))->orderBy('tipo')->orderBy('nombre')->get()->groupBy('tipo'),
+            'programas' => Programa::agrupadosPorSede(),
         ]);
+    }
+
+    /**
+     * Vuelve a «Solicitudes por aprobar» con los filtros que tenía la lista (llegan en el campo «volver»).
+     */
+    private function volverAPendientes(Request $request): RedirectResponse
+    {
+        return redirect()->route('prestamos.pendientes', $this->filtrosParaVolver($request));
+    }
+
+    /**
+     * Los filtros de la lista que llegan en «volver», solo los conocidos y sin arreglos.
+     *
+     * @return array<string, string>
+     */
+    private function filtrosParaVolver(Request $request): array
+    {
+        parse_str((string) $request->input('volver'), $filtros);
+
+        return array_filter(array_intersect_key($filtros, array_flip(self::FILTROS_PENDIENTES)), 'is_string');
     }
 
     /**
@@ -210,7 +287,7 @@ class PrestamoController extends Controller
             $mensaje .= " Se rechazaron automáticamente {$rechazadas} ".($rechazadas === 1 ? 'solicitud que se cruzaba' : 'solicitudes que se cruzaban').' y se les avisó.';
         }
 
-        return redirect()->route('prestamos.pendientes')->with('status', $mensaje);
+        return $this->volverAPendientes($request)->with('status', $mensaje);
     }
 
     /**
@@ -220,7 +297,7 @@ class PrestamoController extends Controller
     {
         $this->servicio->rechazar($prestamo, $request->user(), $request->validated('motivo'));
 
-        return redirect()->route('prestamos.pendientes')->with('status', "Rechazaste la solicitud de {$prestamo->solicitante->name} para «{$prestamo->equipo->nombre}». Se le avisó con el motivo.");
+        return $this->volverAPendientes($request)->with('status', "Rechazaste la solicitud de {$prestamo->solicitante->name} para «{$prestamo->equipo->nombre}». Se le avisó con el motivo.");
     }
 
     /**

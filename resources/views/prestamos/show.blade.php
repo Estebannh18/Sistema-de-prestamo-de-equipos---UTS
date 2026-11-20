@@ -19,7 +19,7 @@
         <p class="aviso-error"><x-icono nombre="alerta" class="h-5 w-5 shrink-0" />{{ $errors->first('solicitud') }}</p>
     @endif
 
-    <a href="{{ $esPersonal ? route('prestamos.pendientes') : route('prestamos.index') }}" class="enlace inline-flex items-center gap-1 text-sm">
+    <a href="{{ $esPersonal ? route('prestamos.pendientes', $volver) : route('prestamos.index') }}" class="enlace inline-flex items-center gap-1 text-sm">
         <x-icono nombre="izquierda" class="h-4 w-4" />{{ $esPersonal ? 'Solicitudes por aprobar' : 'Mis solicitudes' }}
     </a>
 
@@ -111,6 +111,7 @@
                   @if ($pendientesQueSeCruzan->isNotEmpty()) onsubmit="return confirm('Al aprobar esta solicitud se rechazarán automáticamente las otras pendientes del mismo bloque. ¿Continuar?');" @endif>
                 @csrf
                 @method('PATCH')
+                <input type="hidden" name="volver" value="{{ http_build_query($volver) }}">
                 <x-primary-button><x-icono nombre="check" class="h-4 w-4" />Aprobar</x-primary-button>
             </form>
             <x-danger-button type="button" x-show="! rechazar" x-on:click="rechazar = true; $nextTick(() => $refs.motivo.focus())"><x-icono nombre="cerrar" class="h-4 w-4" />Rechazar</x-danger-button>
@@ -118,6 +119,7 @@
             <form method="POST" action="{{ route('prestamos.rechazar', $prestamo) }}" class="w-full max-w-2xl" x-show="rechazar" x-cloak>
                 @csrf
                 @method('PATCH')
+                <input type="hidden" name="volver" value="{{ http_build_query($volver) }}">
                 <label for="motivo" class="block font-display text-sm font-bold text-marca-noche">Motivo del rechazo<x-obligatorio /></label>
                 <textarea id="motivo" name="motivo" rows="3" x-ref="motivo" maxlength="500" required class="campo-uts mt-1 block w-full"
                           placeholder="Por ejemplo: el salón está reservado para una actividad institucional.">{{ old('motivo') }}</textarea>

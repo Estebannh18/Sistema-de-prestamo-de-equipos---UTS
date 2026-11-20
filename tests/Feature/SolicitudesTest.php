@@ -381,6 +381,104 @@ class SolicitudesTest extends TestCase
             ->assertSee('2 solicitudes esperando respuesta');
     }
 
+    /**
+     * Cuatro pendientes: Ana y Beto (estudiantes de Sistemas) con el Salón 304B el martes 24 a la 1:30 p. m. (chocan),
+     * un docente con el video beam verde el 25 y una estudiante de otra carrera con el video beam azul el 26.
+     *
+     * @return array{ana: User, docente: User, otra: Programa, deDocente: Prestamo}
+     */
+    private function pendientesVariadas(): array
+    {
+        $ana = User::factory()->create(['rol' => 'estudiante', 'programa_id' => $this->sistemas, 'name' => 'Ana Gómez', 'documento' => '555123']);
+        $this->actingAs($ana)->post('/prestamos', $this->datos($this->salon, '13:30'));
+        $this->travel(5)->minutes();
+        $this->actingAs($this->estudiante())->post('/prestamos', $this->datos($this->salon, '13:30'));
+        $this->travel(5)->minutes();
+
+        $pendiente = fn (User $user, Equipo $equipo, string $fecha) => Prestamo::factory()->create([
+            'equipo_id' => $equipo->id, 'solicitante_id' => $user->id, 'estado' => 'pendiente',
+            'fecha' => $fecha, 'fecha_esperada_devolucion' => $fecha, 'hora_inicio' => '09:00:00', 'hora_fin' => '10:30:00',
+        ]);
+        $docente = User::factory()->create(['rol' => 'docente', 'programa_id' => $this->sistemas]);
+        $deDocente = $pendiente($docente, $this->videoBeam, '2026-11-25');
+        $this->travel(5)->minutes();
+        $otra = Programa::whereKeyNot($this->sistemas)->orderBy('id')->firstOrFail();
+        $pendiente($this->estudiante($otra->id), $this->videoBeam2, '2026-11-26');
+
+        return ['ana' => $ana, 'docente' => $docente, 'otra' => $otra, 'deDocente' => $deDocente];
+    }
+
+    public function test_por_aprobar_se_filtra_por_perfil_categoria_carrera_busqueda_y_choques(): void
+    {
+        ['otra' => $otra] = $this->pendientesVariadas();
+        $salones = $this->salon->categoria_id;
+        $this->actingAs(User::factory()->create(['rol' => 'funcionario']));
+
+        $this->get('/prestamos/pendientes')->assertOk()
+            ->assertSee('4 solicitudes esperando respuesta')
+            ->assertSee('Perfil')->assertSee('Categoría')->assertSee('Carrera del solicitante')->assertSee('Ordenar')
+            ->assertDontSee('Limpiar todo');
+
+        // Perfil
+        $this->get('/prestamos/pendientes?perfil=docente')->assertOk()
+            ->assertSee('1 solicitud esperando respuesta')->assertSee('Video beam verde')->assertDontSee('Salón 304B')
+            ->assertSee('Quitar este filtro')->assertSee('Limpiar todo');
+        // Categoría; si no es del tipo elegido, no se aplica
+        $this->get('/prestamos/pendientes?categoria='.$salones)->assertOk()
+            ->assertSee('2 solicitudes esperando respuesta')->assertDontSee('Video beam verde')->assertDontSee('Video beam azul');
+        $this->get('/prestamos/pendientes?tipo=equipo&categoria='.$salones)->assertOk()
+            ->assertSee('2 solicitudes esperando respuesta')->assertSee('Video beam azul')->assertDontSee('Salón 304B');
+        // Carrera del solicitante
+        $this->get('/prestamos/pendientes?programa='.$otra->id)->assertOk()
+            ->assertSee('1 solicitud esperando respuesta')->assertSee('Video beam azul')->assertSee($otra->nombre.' · '.$otra->sede);
+        // Búsqueda por documento del solicitante y por código del equipo
+        $this->get('/prestamos/pendientes?buscar=555123')->assertOk()
+            ->assertSee('1 solicitud esperando respuesta')->assertSee('Ana Gómez');
+        $this->get('/prestamos/pendientes?buscar=VB-02')->assertOk()
+            ->assertSee('1 solicitud esperando respuesta')->assertSee('Video beam azul');
+        // Solo las que chocan con otra del mismo bloque
+        $this->get('/prestamos/pendientes?choques=1')->assertOk()
+            ->assertSee('2 solicitudes esperando respuesta')->assertSee('Salón 304B')->assertDontSee('Video beam verde')->assertDontSee('Video beam azul');
+        // Sin resultados
+        $this->get('/prestamos/pendientes?fecha=2026-12-01')->assertOk()
+            ->assertSee('No hay solicitudes por aprobar con estos filtros.');
+        // Valores que no existen se ignoran
+        $this->get('/prestamos/pendientes?perfil=administrador&categoria=999&programa=abc&orden=otro')->assertOk()
+            ->assertSee('4 solicitudes esperando respuesta');
+    }
+
+    public function test_por_aprobar_se_ordena_por_solicitud_o_por_dia_del_prestamo(): void
+    {
+        $this->pendientesVariadas();
+        $this->actingAs(User::factory()->create(['rol' => 'funcionario']));
+
+        $this->get('/prestamos/pendientes')->assertOk()->assertSee('más antigua primero')
+            ->assertSeeInOrder(['Salón 304B', 'Video beam verde', 'Video beam azul']);
+        $this->get('/prestamos/pendientes?orden=recientes')->assertOk()->assertSee('más reciente primero')
+            ->assertSeeInOrder(['Video beam azul', 'Video beam verde', 'Salón 304B']);
+        $this->get('/prestamos/pendientes?orden=proximas')->assertOk()
+            ->assertSeeInOrder(['Martes 24/11/2026', 'Miércoles 25/11/2026', 'Jueves 26/11/2026']);
+        $this->get('/prestamos/pendientes?orden=lejanas')->assertOk()
+            ->assertSeeInOrder(['Jueves 26/11/2026', 'Miércoles 25/11/2026', 'Martes 24/11/2026']);
+    }
+
+    public function test_al_atender_se_vuelve_a_la_lista_con_los_mismos_filtros(): void
+    {
+        ['deDocente' => $deDocente] = $this->pendientesVariadas();
+        $this->actingAs(User::factory()->create(['rol' => 'funcionario']));
+
+        // La lista y el detalle llevan los filtros
+        $this->get('/prestamos/pendientes?tipo=equipo&orden=recientes')->assertOk()
+            ->assertSee('name="volver" value="'.e('tipo=equipo&orden=recientes').'"', false);
+        $this->get(route('prestamos.show', [$deDocente, 'volver' => 'tipo=equipo&orden=recientes']))->assertOk()
+            ->assertSee(e(route('prestamos.pendientes', ['tipo' => 'equipo', 'orden' => 'recientes'])), false);
+
+        // Al aprobar vuelve con los filtros conocidos; lo desconocido se descarta
+        $this->patch("/prestamos/{$deDocente->id}/aprobar", ['volver' => 'tipo=equipo&orden=recientes&malo[]=x&otro=1'])
+            ->assertRedirect(route('prestamos.pendientes', ['tipo' => 'equipo', 'orden' => 'recientes']));
+        $this->assertSame('aprobado', $deDocente->refresh()->estado);
+    }
+
     // ---------- Cancelar ----------
 
     public function test_cancelar_dentro_del_tiempo_y_no_despues(): void
