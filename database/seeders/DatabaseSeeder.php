@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
             HorarioSeeder::class,
             SolicitudSeeder::class,
             EntregaSeeder::class,
+            // Al final: SolicitudSeeder y EntregaSeeder eligen equipos que todavía no tienen préstamos.
+            HistorialSeeder::class,
             NoticiaSeeder::class,
         ]);
     }
