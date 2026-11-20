@@ -50,9 +50,6 @@ class UsuarioController extends Controller
         ]);
     }
 
-    /**
-     * Muestra el formulario para crear un usuario.
-     */
     public function create(): View
     {
         return view('usuarios.create', [
@@ -80,9 +77,6 @@ class UsuarioController extends Controller
         return redirect()->route('usuarios.edit', $usuario);
     }
 
-    /**
-     * Muestra el formulario para editar un usuario.
-     */
     public function edit(Request $request, User $usuario): View
     {
         return view('usuarios.edit', [

@@ -231,7 +231,7 @@
                                     @endif
                                 </div>
                             @else
-                                {{-- La solicitud recibe el equipo elegido; el formulario lo usará cuando se complete el módulo de préstamos. --}}
+                                {{-- Abre la solicitud con este equipo o espacio ya elegido. --}}
                                 <a href="{{ route('prestamos.create', ['equipo' => $equipo->id]) }}" class="boton-principal !px-4 !py-1.5 text-xs">Solicitar</a>
                             @endif
                         </div>

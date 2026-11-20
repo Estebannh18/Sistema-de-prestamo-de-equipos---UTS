@@ -75,9 +75,6 @@ class EquipoController extends Controller
         return $this->formulario('equipos.create', null, $tipo, $categoria?->id);
     }
 
-    /**
-     * Crea un equipo o un espacio.
-     */
     public function store(Request $request): RedirectResponse
     {
         $categoria = $this->categoriaElegida($request);
@@ -107,9 +104,6 @@ class EquipoController extends Controller
         ])]);
     }
 
-    /**
-     * Muestra el formulario para editar un equipo o un espacio.
-     */
     public function edit(Equipo $equipo): View
     {
         $equipo->load(['categoria', 'programas']);

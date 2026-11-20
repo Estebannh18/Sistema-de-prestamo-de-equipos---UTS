@@ -15,10 +15,10 @@ use Illuminate\Support\Carbon;
  * Se crean con PrestamoService, así que siguen las mismas reglas que una solicitud real
  * (horarios, anticipación, festivos, carreras, máximos y avisos a los funcionarios):
  *
- * - Estudiante de prueba: un equipo aprobado solo y un espacio pendiente de aprobación.
+ * - Estudiante: un equipo aprobado solo y un espacio pendiente de aprobación.
  * - Segundo estudiante: el mismo espacio y bloque (el funcionario verá el choque), otro espacio
  *   que el funcionario rechaza con su motivo y un equipo que el estudiante cancela.
- * - Docente de prueba: un espacio aprobado solo (los docentes no pasan por aprobación si no llegan a su máximo).
+ * - Docente: un espacio aprobado solo (los docentes no pasan por aprobación si no llegan a su máximo).
  *
  * Las fechas se calculan desde hoy. Si ya hay préstamos, no hace nada:
  *   php artisan db:seed --class=SolicitudSeeder

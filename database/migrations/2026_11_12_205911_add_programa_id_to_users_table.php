@@ -11,7 +11,7 @@ return new class extends Migration
      * Antes había un solo campo de texto, «programa_dependencia», para todo.
      * Ahora:
      *  - estudiantes y docentes eligen su programa de la tabla programas (programa_id);
-     *  - el personal escribe su dependencia en «dependencia» (el mismo campo de antes, renombrado).
+     *  - el personal escribe su dependencia en «dependencia» (el campo programa_dependencia, renombrado).
      */
     public function up(): void
     {

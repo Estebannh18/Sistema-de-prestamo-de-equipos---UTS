@@ -1,0 +1,75 @@
+@startuml casos_de_uso
+title Casos de uso
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #0F5C3A
+}
+
+actor "Estudiante" as estudiante
+actor "Docente" as docente
+actor "Funcionario" as funcionario
+actor "Administrador" as administrador
+
+' El administrador hace todo lo que hace el funcionario, y además administra el sistema.
+administrador -|> funcionario
+
+rectangle "Sistema de préstamo de equipos y espacios" {
+  usecase "Iniciar sesión\n(con 2FA opcional)" as CU01
+  usecase "Consultar equipos y espacios" as CU02
+  usecase "Solicitar un préstamo\n(fecha y bloque)" as CU03
+  usecase "Cancelar una solicitud" as CU04
+  usecase "Consultar mis solicitudes" as CU05
+  usecase "Leer noticias y notificaciones" as CU06
+
+  usecase "Aprobar o rechazar solicitudes" as CU07
+  usecase "Registrar la entrega" as CU08
+  usecase "Registrar la devolución" as CU09
+  usecase "Programar mantenimiento" as CU10
+  usecase "Consultar el reporte\ny exportarlo a PDF" as CU11
+  usecase "Publicar noticias" as CU12
+
+  usecase "Gestionar usuarios" as CU13
+  usecase "Gestionar categorías" as CU14
+  usecase "Gestionar equipos, espacios\ny sus horarios" as CU15
+  usecase "Configurar tiempos y límites" as CU16
+}
+
+estudiante --> CU01
+estudiante --> CU02
+estudiante --> CU03
+estudiante --> CU04
+estudiante --> CU05
+estudiante --> CU06
+
+docente --> CU01
+docente --> CU02
+docente --> CU03
+docente --> CU04
+docente --> CU05
+docente --> CU06
+
+funcionario --> CU01
+funcionario --> CU02
+funcionario --> CU06
+funcionario --> CU07
+funcionario --> CU08
+funcionario --> CU09
+funcionario --> CU10
+funcionario --> CU11
+funcionario --> CU12
+
+administrador --> CU13
+administrador --> CU14
+administrador --> CU15
+administrador --> CU16
+
+note bottom of CU03
+  El estudiante solo pide los equipos habilitados
+  para estudiantes y los espacios de su carrera.
+  El docente pide los equipos habilitados para
+  docentes y cualquier espacio.
+end note
+@enduml

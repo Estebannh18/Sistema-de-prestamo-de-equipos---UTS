@@ -1,0 +1,53 @@
+@startuml estados_prestamo
+title Estados de un préstamo
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam state {
+  BackgroundColor #FFFFFF
+  BorderColor #0F5C3A
+}
+hide empty description
+
+state "Pendiente de aprobación" as pendiente
+state "Aprobada" as aprobado
+state "Rechazada" as rechazado
+state "Cancelada" as cancelado
+state "Entregado" as entregado
+state "No recogido" as no_recogido
+state "No entregado" as no_entregado
+state "Por corregir" as por_corregir
+state "Devuelto" as devuelto
+state "Devolución rechazada" as devolucion_rechazada
+
+[*] --> aprobado : solicitar\n[bloque libre y sin superar el máximo;\nun espacio pedido por un estudiante nunca]
+[*] --> pendiente : solicitar\n[requiere aprobación]
+
+pendiente --> aprobado : el funcionario aprueba\n(las pendientes que se cruzan se rechazan)
+pendiente --> rechazado : el funcionario rechaza\n(con motivo)
+pendiente --> cancelado : el solicitante cancela\n(antes del tiempo mínimo)
+aprobado --> cancelado : cancela el solicitante, el personal\no el sistema (mantenimiento)
+
+aprobado --> entregado : el funcionario registra la entrega\n(desde la anticipación hasta el fin del bloque)
+aprobado --> no_entregado : no se pudo entregar\n(el préstamo anterior no se devolvió)
+aprobado --> no_recogido : terminó el bloque sin entrega\n(automático)
+
+entregado --> devuelto : devolución aceptada
+entregado --> por_corregir : devolución por corregir\n(con motivo y plazo)
+entregado --> devolucion_rechazada : devolución rechazada\n(el equipo queda en mantenimiento)
+por_corregir --> devuelto : nueva revisión aceptada
+por_corregir --> devolucion_rechazada : nueva revisión rechazada
+
+rechazado --> [*]
+cancelado --> [*]
+no_recogido --> [*]
+no_entregado --> [*]
+devuelto --> [*]
+devolucion_rechazada --> [*]
+
+note right of entregado
+  «Devolución atrasada» no es un estado:
+  es un préstamo entregado cuya hora límite
+  (fin del bloque + tiempo de devolución
+  configurado) ya pasó.
+end note
+@enduml

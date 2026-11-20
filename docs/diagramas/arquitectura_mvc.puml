@@ -1,0 +1,82 @@
+@startuml arquitectura_mvc
+title Arquitectura MVC y recorrido de una petición
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam componentStyle rectangle
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #0F5C3A
+}
+skinparam package {
+  BorderColor #808286
+}
+
+actor "Usuario\n(navegador)" as usuario
+
+package "Aplicación Laravel 12 (PHP 8.2)" {
+  component "Rutas\nroutes/web.php" as rutas
+  component "Fortify y Breeze\ninicio de sesión y 2FA" as auth
+
+  package "Middleware" {
+    component "auth\n(sesión iniciada)" as mwAuth
+    component "VerificarCuentaActiva" as mwActiva
+    component "VerificarRol\n(rol:administrador,...)" as mwRol
+    component "SincronizarMantenimientos" as mwMant
+  }
+
+  package "Controlador" {
+    component "Controladores\nUsuario, Categoria, Equipo, Horario,\nMantenimiento, Prestamo, Entrega,\nDevolucion, Reporte, Noticia, ..." as controladores
+    component "Form Requests\n(validación)" as requests
+    component "Policies\nPrestamoPolicy, NoticiaPolicy" as policies
+  }
+
+  package "Reglas de negocio" {
+    component "PrestamoService\nsolicitar, aprobar, rechazar, cancelar" as prestamoService
+    component "EntregaService\nentregar, recibir, resolver pendiente" as entregaService
+    component "ReportePrestamos\nindicadores y detalle" as reporte
+    component "Notificaciones\n(canal database: la campana)" as notificaciones
+  }
+
+  package "Modelo" {
+    component "Modelos Eloquent\nUser, Programa, Categoria, Equipo, Horario,\nMantenimiento, Prestamo, Entrega, Devolucion,\nPrestamoFoto, Noticia, NoticiaAdjunto, Configuracion" as modelos
+  }
+
+  package "Vista" {
+    component "Vistas Blade\ny componentes (Tailwind CSS)" as vistas
+    component "Plantilla del PDF\n(laravel-dompdf)" as pdf
+  }
+}
+
+database "MariaDB\n(XAMPP)" as bd
+folder "storage/app\n(fotos y adjuntos)" as archivos
+
+usuario --> rutas : petición HTTP
+rutas --> auth
+rutas --> mwAuth
+mwAuth --> mwActiva
+mwActiva --> mwRol
+mwRol --> mwMant
+mwMant --> controladores
+controladores --> requests : valida
+controladores --> policies : autoriza
+controladores --> prestamoService
+controladores --> entregaService
+controladores --> reporte
+prestamoService --> notificaciones
+entregaService --> notificaciones
+prestamoService --> modelos : transacción con bloqueo
+entregaService --> modelos : transacción con bloqueo
+reporte --> modelos
+controladores --> modelos : CRUD
+modelos --> bd
+entregaService --> archivos
+controladores --> vistas
+controladores --> pdf
+vistas --> usuario : HTML
+pdf --> usuario : archivo PDF
+
+note bottom of mwRol
+  Una petición sin permiso termina aquí con error 403;
+  sin sesión, se redirige al inicio de sesión.
+end note
+@enduml

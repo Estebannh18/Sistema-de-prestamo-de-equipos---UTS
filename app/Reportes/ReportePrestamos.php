@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Reporte de préstamos (RF-14). Lo usan la vista en línea y el PDF, así los dos muestran
@@ -103,7 +104,7 @@ class ReportePrestamos
         $reporte = new self($request->user(), array_filter($filtros, fn ($valor) => $valor !== null && $valor !== ''));
 
         if ($reporte->desde->diffInDays($reporte->hasta) + 1 > self::MAX_DIAS) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['hasta' => 'El reporte abarca como máximo un año.']);
+            throw ValidationException::withMessages(['hasta' => 'El reporte abarca como máximo un año.']);
         }
 
         return $reporte;
@@ -128,7 +129,9 @@ class ReportePrestamos
         return array_filter([
             'Periodo' => $this->desde->format('d/m/Y').' a '.$this->hasta->format('d/m/Y'),
             'Estado' => $this->estado ? self::ESTADOS[$this->estado] : 'Todos',
-            'Tipo' => match ($this->tipo) { 'equipo' => 'Equipos', 'espacio' => 'Espacios', default => 'Equipos y espacios' },
+            'Tipo' => match ($this->tipo) {
+                'equipo' => 'Equipos', 'espacio' => 'Espacios', default => 'Equipos y espacios'
+            },
             'Categoría' => $this->categoria ? Categoria::find($this->categoria)?->nombre : null,
             'Atendidos por' => $this->mios ? $this->usuario->name : null,
         ]);

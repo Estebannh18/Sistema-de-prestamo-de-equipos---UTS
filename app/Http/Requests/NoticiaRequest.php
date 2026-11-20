@@ -10,7 +10,6 @@ use Illuminate\Validation\Rule;
 
 /**
  * Validaciones al crear o editar una noticia.
- * Las decisiones están explicadas en infoDesarrollo/modulo-noticias.html.
  */
 class NoticiaRequest extends FormRequest
 {

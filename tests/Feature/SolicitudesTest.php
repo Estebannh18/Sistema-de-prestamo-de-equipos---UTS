@@ -19,7 +19,7 @@ use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 /**
- * Reglas de las solicitudes de estudiantes (plan-modulo-estudiantes.html).
+ * Reglas de las solicitudes de estudiantes.
  * El reloj se fija el lunes 23/11/2026 a las 8:00 a. m.; «mañana» es el martes 24/11.
  */
 class SolicitudesTest extends TestCase

@@ -33,7 +33,7 @@ class SolicitudSeederTest extends TestCase
         $segundo = User::where('email', 'estudiante2@prestamos.test')->firstOrFail();
         $funcionario = User::where('email', 'funcionario@prestamos.test')->firstOrFail();
 
-        // Estudiante de prueba: un equipo aprobado solo y un espacio pendiente (desde mañana; lo anterior es la historia de EntregaSeeder).
+        // Estudiante: un equipo aprobado solo y un espacio pendiente (desde mañana; lo anterior es la historia de EntregaSeeder).
         $mias = $estudiante->solicitudes()->whereDate('fecha', '>', today())->with('equipo.categoria')->get();
         $this->assertCount(2, $mias);
         $equipo = $mias->first(fn ($p) => ! $p->equipo->esEspacio());

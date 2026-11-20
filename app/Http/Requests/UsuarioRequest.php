@@ -11,7 +11,6 @@ use Illuminate\Validation\Rules\Password;
 
 /**
  * Validaciones del módulo Usuarios (crear y editar).
- * Las decisiones están explicadas en infoDesarrollo/modulo-usuarios-validaciones.html.
  */
 class UsuarioRequest extends FormRequest
 {

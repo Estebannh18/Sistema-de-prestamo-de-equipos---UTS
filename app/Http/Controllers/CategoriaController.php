@@ -41,17 +41,11 @@ class CategoriaController extends Controller
         ]);
     }
 
-    /**
-     * Muestra el formulario para crear una categoría.
-     */
     public function create(): View
     {
         return view('categorias.create');
     }
 
-    /**
-     * Crea una categoría.
-     */
     public function store(Request $request): RedirectResponse
     {
         Categoria::create($request->validate($this->reglas()));
@@ -67,17 +61,11 @@ class CategoriaController extends Controller
         return redirect()->route('equipos.index', ['categoria' => $categoria->id]);
     }
 
-    /**
-     * Muestra el formulario para editar una categoría.
-     */
     public function edit(Categoria $categoria): View
     {
         return view('categorias.edit', ['categoria' => $categoria]);
     }
 
-    /**
-     * Actualiza una categoría.
-     */
     public function update(Request $request, Categoria $categoria): RedirectResponse
     {
         $categoria->update($request->validate($this->reglas($categoria)));
@@ -100,7 +88,7 @@ class CategoriaController extends Controller
     }
 
     /**
-     * Validaciones básicas del prototipo; se completan en el módulo Categorías.
+     * El tipo decide si la categoría agrupa equipos o espacios; el ícono es opcional.
      *
      * @return array<string, array<int, mixed>>
      */

@@ -1,0 +1,159 @@
+@startuml clases
+title Diagrama de clases
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #0F5C3A
+  HeaderBackgroundColor #EEF4B5
+}
+hide empty members
+
+package "Modelos" {
+  class User {
+    name, email, password
+    rol, tipo_documento, documento
+    telefono, dependencia, activo
+    --
+    esAdministrador(), esFuncionario()
+    esDocente(), esEstudiante()
+    tienePrestamosActivos(): bool
+    modulos(): array
+  }
+
+  class Programa {
+    nombre, nivel, modalidad, sede, snies
+  }
+
+  class Categoria {
+    nombre, descripcion, tipo, icono
+    --
+    esEspacio(): bool
+    iconoVisible(): string
+  }
+
+  class Equipo {
+    codigo_inventario, nombre, marca, modelo
+    ubicacion, capacidad, estado
+    solicitable_por, descripcion
+    --
+    esEspacio(): bool
+    estaDisponible(): bool
+    permiteSolicitud(User): bool
+    carrerasHabilitadas(): Collection
+    quienPuedePedir(): string
+  }
+
+  class Horario {
+    dia_semana, hora_inicio, hora_fin
+  }
+
+  class Mantenimiento {
+    desde, hasta, motivo
+  }
+
+  class Prestamo {
+    estado, fecha, hora_inicio, hora_fin
+    aprobacion, fecha_respuesta
+    motivo_rechazo, motivo_cancelacion
+    --
+    bloque(): string
+    estaEnCurso(): bool
+    sePuedeCancelar(): bool
+    limiteDevolucion(): Carbon
+    estaAtrasado(): bool
+    minutosDeRetraso(): int
+    {static} marcarNoRecogidos(): int
+  }
+
+  class Entrega {
+    entregado_en, estado
+    complementos, condiciones
+  }
+
+  class Devolucion {
+    recibido_en, minutos_retraso
+    estado, resultado, faltantes
+    motivo, plazo, pendiente
+  }
+
+  class PrestamoFoto {
+    ruta, nombre_original, tamano
+  }
+
+  class Noticia {
+    titulo, contenido
+  }
+
+  class NoticiaAdjunto {
+    tipo, ruta, nombre_original
+  }
+
+  class Configuracion {
+    clave, valor
+    --
+    {static} minutosDevolucion(): int
+    {static} minutosCancelacion(User): int
+  }
+}
+
+package "Reglas de negocio" {
+  class PrestamoService {
+    solicitar(User, Equipo, fecha, Horario): Prestamo
+    aprobar(Prestamo, User)
+    rechazar(Prestamo, User, motivo)
+    cancelar(Prestamo, User)
+    cancelarAprobada(Prestamo, User, motivo)
+    choques(Prestamo): Collection
+  }
+
+  class EntregaService {
+    entregar(Prestamo, User, datos, fotos): Entrega
+    noSePudoEntregar(Prestamo, User, motivo)
+    recibir(Prestamo, User, datos, fotos): Devolucion
+    resolverPendiente(Devolucion, User)
+  }
+
+  class ReportePrestamos {
+    indicadores(): array
+    porPeriodo(): Collection
+    masPedidos(): Collection
+    carrerasQueMasPiden(): Collection
+    paginado(): LengthAwarePaginator
+  }
+
+  class PrestamoPolicy {
+    view(User, Prestamo): bool
+    solicitar(User): bool
+    atender(User, Prestamo): bool
+    cancelar(User, Prestamo): bool
+  }
+}
+
+' Relaciones entre modelos
+Programa "0..1" -- "0..*" User : estudia o enseña >
+Categoria "1" -- "0..*" Equipo : agrupa >
+Equipo "0..*" -- "0..*" Programa : carreras habilitadas >
+Equipo "1" *-- "0..*" Horario
+Equipo "1" -- "0..*" Mantenimiento
+User "1" -- "0..*" Prestamo : solicita >
+User "0..1" -- "0..*" Prestamo : atiende >
+Equipo "1" -- "0..*" Prestamo
+Prestamo "1" *-- "0..1" Entrega
+Prestamo "1" *-- "0..*" Devolucion
+Prestamo "1" *-- "0..*" PrestamoFoto
+User "0..1" -- "0..*" Noticia : publica >
+Noticia "1" *-- "0..*" NoticiaAdjunto
+
+' Dependencias de las reglas de negocio
+PrestamoService ..> Prestamo
+PrestamoService ..> Equipo
+PrestamoService ..> Configuracion
+EntregaService ..> Entrega
+EntregaService ..> Devolucion
+EntregaService ..> Mantenimiento
+ReportePrestamos ..> Prestamo
+PrestamoPolicy ..> User
+PrestamoPolicy ..> Prestamo
+@enduml

@@ -19,7 +19,7 @@ class NoticiaSeeder extends Seeder
 
         $noticias = [
             [$administrador, 'Sala de informática 301C cerrada por mantenimiento', "La sala de informática 301C estará cerrada del lunes 16 al viernes 20 de noviembre por mantenimiento de los equipos.\n\nDurante esos días no se podrán hacer reservas de esa sala. Si necesitas un espacio con computadores, solicita la sala 302A."],
-            [$funcionario, 'Equipos restaurados en el salón 304B', "Se restauraron los computadores y el videoproyector del salón 304B. Desde hoy el salón vuelve a estar disponible para préstamo en todos los bloques de horario."],
+            [$funcionario, 'Equipos restaurados en el salón 304B', 'Se restauraron los computadores y el videoproyector del salón 304B. Desde hoy el salón vuelve a estar disponible para préstamo en todos los bloques de horario.'],
         ];
 
         foreach ($noticias as [$autor, $titulo, $contenido]) {

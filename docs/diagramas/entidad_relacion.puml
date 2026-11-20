@@ -1,0 +1,215 @@
+@startuml entidad_relacion
+title Diagrama entidad-relación
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #0F5C3A
+  HeaderBackgroundColor #EEF4B5
+}
+
+' Tablas propias del sistema. Laravel agrega además sessions, cache, jobs,
+' password_reset_tokens y notifications (avisos de la campana).
+' Todas tienen created_at y updated_at.
+
+entity users {
+  *id : bigint <<PK>>
+  --
+  *name : varchar
+  *email : varchar <<UQ>>
+  *password : varchar
+  *rol : enum(administrador, funcionario, docente, estudiante)
+  *tipo_documento : enum(CC, TI, CE, PA)
+  *documento : varchar <<UQ>>
+  telefono : varchar
+  programa_id : bigint <<FK>>
+  dependencia : varchar
+  *activo : boolean
+  two_factor_secret : text
+}
+
+entity programas {
+  *id : bigint <<PK>>
+  --
+  *nombre : varchar
+  *nivel : enum(tecnologia, universitario)
+  *modalidad : enum(presencial, virtual)
+  *sede : varchar
+  *snies : int <<UQ>>
+}
+
+entity categorias {
+  *id : bigint <<PK>>
+  --
+  *nombre : varchar <<UQ>>
+  descripcion : text
+  *tipo : enum(equipo, espacio)
+  icono : varchar
+}
+
+entity equipos {
+  *id : bigint <<PK>>
+  --
+  *categoria_id : bigint <<FK>>
+  *codigo_inventario : varchar <<UQ>>
+  *nombre : varchar
+  marca : varchar
+  modelo : varchar
+  ubicacion : varchar
+  capacidad : smallint
+  *estado : enum(disponible, prestado, mantenimiento)
+  *solicitable_por : enum(estudiante, docente, ambos)
+  descripcion : text
+}
+
+entity equipo_programa {
+  *equipo_id : bigint <<PK, FK>>
+  *programa_id : bigint <<PK, FK>>
+}
+
+entity horarios {
+  *id : bigint <<PK>>
+  --
+  *equipo_id : bigint <<FK>>
+  *dia_semana : tinyint
+  *hora_inicio : time
+  *hora_fin : time
+}
+
+entity mantenimientos {
+  *id : bigint <<PK>>
+  --
+  *equipo_id : bigint <<FK>>
+  *desde : date
+  hasta : date
+  *motivo : varchar
+  creado_por_id : bigint <<FK>>
+  prestamo_id : bigint <<FK>>
+}
+
+entity prestamos {
+  *id : bigint <<PK>>
+  --
+  *equipo_id : bigint <<FK>>
+  *solicitante_id : bigint <<FK>>
+  funcionario_id : bigint <<FK>>
+  *estado : enum(pendiente, aprobado, rechazado, cancelado,\n entregado, no_recogido, no_entregado,\n por_corregir, devuelto, devolucion_rechazada)
+  fecha : date
+  hora_inicio : time
+  hora_fin : time
+  aprobacion : enum(automatica, funcionario)
+  *fecha_esperada_devolucion : date
+  fecha_respuesta : datetime
+  fecha_devolucion : datetime
+  motivo_rechazo : text
+  cancelado_en : datetime
+  cancelada_por : enum(solicitante, personal, sistema)
+  cancelado_por_id : bigint <<FK>>
+  motivo_cancelacion : text
+  motivo_no_entrega : text
+  no_entregado_por_id : bigint <<FK>>
+  no_entregado_en : datetime
+  observaciones : text
+}
+
+entity entregas {
+  *id : bigint <<PK>>
+  --
+  *prestamo_id : bigint <<FK, UQ>>
+  funcionario_id : bigint <<FK>>
+  *entregado_en : datetime
+  *estado : enum(bueno, con_observaciones)
+  *complementos : text
+  condiciones : text
+  observaciones : text
+}
+
+entity devoluciones {
+  *id : bigint <<PK>>
+  --
+  *prestamo_id : bigint <<FK>>
+  funcionario_id : bigint <<FK>>
+  *recibido_en : datetime
+  *minutos_retraso : int
+  *estado : enum(bueno, sucio, danado)
+  *complementos : text
+  *complementos_completos : boolean
+  faltantes : text
+  condiciones_cumplidas : boolean
+  observaciones : text
+  *resultado : enum(aceptada, por_corregir, rechazada)
+  motivo : text
+  plazo : varchar
+  pendiente : text
+  pendiente_resuelto_en : datetime
+  pendiente_resuelto_por_id : bigint <<FK>>
+}
+
+entity prestamo_fotos {
+  *id : bigint <<PK>>
+  --
+  *prestamo_id : bigint <<FK>>
+  entrega_id : bigint <<FK>>
+  devolucion_id : bigint <<FK>>
+  *ruta : varchar
+  *nombre_original : varchar
+  *tipo_mime : varchar
+  *tamano : int
+}
+
+entity noticias {
+  *id : bigint <<PK>>
+  --
+  user_id : bigint <<FK>>
+  *titulo : varchar
+  *contenido : text
+}
+
+entity noticia_adjuntos {
+  *id : bigint <<PK>>
+  --
+  *noticia_id : bigint <<FK>>
+  *tipo : enum(imagen, documento)
+  *ruta : varchar
+  *nombre_original : varchar
+  *mime : varchar
+  *tamano : int
+}
+
+entity configuraciones {
+  *id : bigint <<PK>>
+  --
+  *clave : varchar <<UQ>>
+  *valor : int
+}
+
+' Programas y usuarios
+programas |o--o{ users : "estudia o enseña"
+
+' Inventario
+categorias ||--o{ equipos : agrupa
+equipos ||--o{ equipo_programa
+programas ||--o{ equipo_programa : "carrera habilitada"
+equipos ||--o{ horarios : "se presta en"
+equipos ||--o{ mantenimientos : "fuera de servicio"
+users |o--o{ mantenimientos : programa
+
+' Préstamos
+users ||--o{ prestamos : solicita
+users |o--o{ prestamos : atiende
+equipos ||--o{ prestamos : "se pide"
+prestamos ||--o| entregas : "se entrega"
+prestamos ||--o{ devoluciones : "se revisa"
+users |o--o{ entregas : entrega
+users |o--o{ devoluciones : recibe
+prestamos ||--o{ prestamo_fotos
+entregas |o--o{ prestamo_fotos
+devoluciones |o--o{ prestamo_fotos
+prestamos |o--o{ mantenimientos : "devolución rechazada"
+
+' Noticias
+users |o--o{ noticias : publica
+noticias ||--o{ noticia_adjuntos : adjunta
+@enduml

@@ -95,9 +95,9 @@
     <header>
         <table>
             <tr>
-                {{-- Logo con su proporción real (468 × 163 px): ancho y alto fijos, no se deforma --}}
-                <td style="width: 50mm; vertical-align: middle;">
-                    <img src="{{ public_path('images/logo-uts-horizontal.png') }}" alt="Logo de la institución" style="width: 46mm; height: 16mm;">
+                {{-- Logo oficial en SVG (vectorial: nítido a cualquier tamaño). Ancho y alto con su proporción real, 624.92 × 277.33 --}}
+                <td style="width: 46mm; vertical-align: middle;">
+                    <img src="{{ public_path('images/logo-uts.svg') }}" alt="Logo de la Universitaria Tecnológica de Santander" style="width: 40mm; height: 17.75mm;">
                 </td>
                 <td style="vertical-align: middle; padding-left: 4mm; border-left: 0.75pt solid #dde5d6;">
                     <div class="titulo">Reporte de préstamos</div>
@@ -105,7 +105,7 @@
                 </td>
                 <td class="generado" style="width: 62mm; vertical-align: middle;">
                     Generado el {{ $generado->format('d/m/Y') }} a las {{ $generado->format('h:i a') }}<br>
-                    por <strong style="color: #0b3d2a;">{{ $reporte->usuario->name }}</strong> ({{ $reporte->usuario->rol }})
+                    por <strong style="color: #0b3d2a;">{{ $reporte->usuario->name }}</strong>@if (mb_strtolower($reporte->usuario->name) !== $reporte->usuario->rol) ({{ $reporte->usuario->rol }})@endif
                 </td>
             </tr>
         </table>

@@ -10,7 +10,6 @@ use Illuminate\Database\Seeder;
 class EquipoSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
      * Se puede volver a ejecutar: actualiza los datos de cada código, pero el estado solo se asigna
      * al crear el registro, para no pisar el de uno que ya está prestado.
      * Nada nace prestado: ese estado solo lo pone la entrega de un préstamo.

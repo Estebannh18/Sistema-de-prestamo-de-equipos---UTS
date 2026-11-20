@@ -12,6 +12,6 @@
     <input type="search" name="q" value="{{ $buscar }}" maxlength="80" aria-label="Buscar {{ $nombreTipo }}"
            placeholder="{{ $tipo === 'espacio' ? 'Busca por nombre, código o ubicación. Ej.: laboratorio' : 'Busca por nombre, marca o código. Ej.: adaptador' }}"
            class="block w-full !rounded-full py-3 pl-12 pr-28 campo-uts">
-    {{-- Botón fijo: solo cambia de color (sin el movimiento de boton-principal, que lo descuadraba) --}}
+    {{-- Botón sin el desplazamiento de boton-principal: dentro del campo de búsqueda lo saca de su lugar. --}}
     <button type="submit" class="absolute inset-y-1.5 right-1.5 inline-flex items-center gap-1.5 rounded-full bg-marca-oliva px-5 font-display text-sm font-bold text-white transition-colors hover:bg-marca-bosque active:bg-marca-noche focus:outline-none focus-visible:ring-4 focus-visible:ring-marca-lima/60">Buscar</button>
 </form>

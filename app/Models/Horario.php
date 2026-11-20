@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Carbon\CarbonInterface;
+use Database\Factories\HorarioFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,7 @@ use Illuminate\Support\Carbon;
  */
 class Horario extends Model
 {
-    /** @use HasFactory<\Database\Factories\HorarioFactory> */
+    /** @use HasFactory<HorarioFactory> */
     use HasFactory;
 
     /** Días en que se presta: de lunes a sábado. Los domingos la universidad no labora. */

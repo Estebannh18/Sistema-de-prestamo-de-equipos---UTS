@@ -8,7 +8,8 @@ Permite controlar la solicitud, el préstamo y la devolución de equipos y salon
 
 ## Requisitos
 
-- PHP 8.2 o superior, con las extensiones `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `dom` y `xml`
+- PHP 8.2 o superior, con las extensiones `pdo_mysql`, `mbstring`, `openssl`, `fileinfo`, `dom`, `xml` y `gd`
+  (en XAMPP, `gd` viene desactivada: quitar el `;` de `extension=gd` en `php.ini` y reiniciar Apache)
 - Composer
 - Node.js y npm
 - MariaDB 10.4 o superior (por ejemplo, la de XAMPP)
@@ -61,6 +62,14 @@ Todos usan la contraseña de demostración `password`. Solo sirve para el entorn
 | Funcionario | `funcionario@prestamos.test` |
 | Docente | `docente@prestamos.test` |
 | Estudiante | `estudiante@prestamos.test` |
+
+Los datos de prueba incluyen además un historial de unos dos meses de préstamos, de doce estudiantes
+y docentes de demostración (`demo-…@prestamos.test`), para que el reporte tenga información.
+En una base que ya tiene datos se agrega con:
+
+```bash
+php artisan db:seed --class=HistorialSeeder
+```
 
 ## Pruebas
 

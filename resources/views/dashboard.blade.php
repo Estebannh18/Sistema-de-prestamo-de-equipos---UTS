@@ -31,7 +31,7 @@
         <p class="text-lg">Hola, {{ Auth::user()->name }}. Tu rol es <strong class="rounded-full bg-marca-limaclaro px-2.5 py-0.5 font-display font-extrabold text-marca-bosque">{{ Auth::user()->rol }}</strong>.</p>
     </div>
 
-    {{-- Acceso rápido: los módulos del rol como botones pequeños, con los mismos colores de antes. --}}
+    {{-- Acceso rápido: los módulos del rol, cada uno con su color. --}}
     <nav class="mt-8" aria-labelledby="titulo-acceso">
         <h2 id="titulo-acceso" class="font-display text-xs font-bold uppercase tracking-wider text-marca-suave">Acceso rápido</h2>
         <div class="mt-3 flex flex-wrap gap-2.5">

@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Reglas de las solicitudes de préstamo. Las decisiones están en infoDesarrollo/plan-modulo-estudiantes.html.
+ * Reglas de las solicitudes de préstamo:
  *
  * - Cada solicitud es de un solo espacio o equipo, para una fecha y un bloque de su horario.
  * - Si está libre, queda aprobada sola; menos los espacios que pide un estudiante, que van al funcionario.

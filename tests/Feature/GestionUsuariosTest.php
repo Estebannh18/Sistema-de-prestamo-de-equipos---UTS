@@ -7,6 +7,8 @@ use App\Models\Equipo;
 use App\Models\Prestamo;
 use App\Models\Programa;
 use App\Models\User;
+use Database\Seeders\ProgramaSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -38,7 +40,6 @@ class GestionUsuariosTest extends TestCase
             'password_confirmation' => 'claveSegura1',
         ];
     }
-
 
     /** Id de Ingeniería de Sistemas, sede Bucaramanga (SNIES 101596): los programas reales se cargan al migrar. */
     private function sistemas(): int
@@ -209,7 +210,7 @@ class GestionUsuariosTest extends TestCase
     {
         $this->assertSame(59, Programa::count());
 
-        $this->seed(\Database\Seeders\ProgramaSeeder::class);
+        $this->seed(ProgramaSeeder::class);
 
         $this->assertSame(59, Programa::count());
         // La misma carrera en varias sedes son programas distintos (cada uno con su SNIES).
@@ -301,7 +302,7 @@ class GestionUsuariosTest extends TestCase
     {
         User::factory()->create(['rol' => 'estudiante', 'programa_id' => $this->sistemas()]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         Programa::find($this->sistemas())->delete();
     }
 

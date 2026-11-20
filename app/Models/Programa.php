@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\ProgramaFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Programa extends Model
 {
-    /** @use HasFactory<\Database\Factories\ProgramaFactory> */
+    /** @use HasFactory<ProgramaFactory> */
     use HasFactory;
 
     /** Sedes en el orden en que se muestran en las listas. */

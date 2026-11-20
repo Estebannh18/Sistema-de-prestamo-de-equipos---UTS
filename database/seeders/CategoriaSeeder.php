@@ -8,7 +8,6 @@ use Illuminate\Database\Seeder;
 class CategoriaSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
      * Usa updateOrCreate: se puede volver a ejecutar sobre una base que ya tiene datos.
      */
     public function run(): void
