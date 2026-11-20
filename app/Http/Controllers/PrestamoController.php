@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CancelacionRequest;
 use App\Http\Requests\RechazoRequest;
 use App\Http\Requests\SolicitudRequest;
 use App\Models\Categoria;
@@ -9,6 +10,7 @@ use App\Models\Configuracion;
 use App\Models\Equipo;
 use App\Models\Horario;
 use App\Models\Prestamo;
+use App\Models\PrestamoFoto;
 use App\Models\Programa;
 use App\Services\PrestamoService;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +18,9 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PrestamoController extends Controller
 {
@@ -29,9 +33,9 @@ class PrestamoController extends Controller
     {
         $user = $request->user();
         $esPersonal = $user->esAdministrador() || $user->esFuncionario();
-        $estado = in_array($request->query('estado'), ['pendiente', 'aprobado', 'rechazado', 'cancelado', 'devuelto'], true) ? $request->query('estado') : null;
+        $estado = array_key_exists((string) $request->query('estado'), Prestamo::NOMBRES) ? $request->query('estado') : null;
 
-        $prestamos = Prestamo::with(['equipo.categoria', 'solicitante.programa', 'funcionario'])
+        $prestamos = Prestamo::with(['equipo.categoria', 'solicitante.programa', 'funcionario', 'entrega', 'ultimaDevolucion'])
             ->when(! $esPersonal, fn ($query) => $query->where('solicitante_id', $user->id))
             ->when($estado, fn ($query) => $query->where('estado', $estado))
             ->orderByDesc('fecha')->orderByDesc('hora_inicio')->orderByDesc('id')
@@ -49,13 +53,8 @@ class PrestamoController extends Controller
      */
     public function create(Request $request): View
     {
-        Gate::authorize('create', Prestamo::class);
+        Gate::authorize('solicitar', Prestamo::class);
         $user = $request->user();
-
-        // La solicitud de los docentes tendrá sus propias reglas: se deja para una etapa siguiente.
-        if (! $user->can('solicitar', Prestamo::class)) {
-            return view('prestamos.create', ['paraDocentes' => true]);
-        }
 
         $fechas = $this->servicio->fechasSolicitables();
         $fecha = $fechas->first(fn (Carbon $f) => $f->toDateString() === $request->query('fecha'));
@@ -81,10 +80,11 @@ class PrestamoController extends Controller
             default => 'horario',
         };
 
-        $datos = compact('paso', 'fechas', 'fecha', 'equipo', 'tipo', 'buscar', 'todas', 'categoria', 'soloLibres') + ['paraDocentes' => false];
+        $datos = compact('paso', 'fechas', 'fecha', 'equipo', 'tipo', 'buscar', 'todas', 'categoria', 'soloLibres');
 
         if ($paso === 'dia' && $equipo) {
             $datos['diasConHorario'] = $equipo->horarios()->distinct()->pluck('dia_semana')->all();
+            $datos['mantenimientos'] = $equipo->mantenimientos()->queSeCruzan(today()->toDateString(), today()->addDays(PrestamoService::DIAS_VISIBLES)->toDateString())->get();
         }
 
         if ($paso === 'que') {
@@ -160,7 +160,8 @@ class PrestamoController extends Controller
     public function show(Request $request, Prestamo $prestamo): View
     {
         Gate::authorize('view', $prestamo);
-        $prestamo->load(['equipo.categoria', 'solicitante.programa', 'funcionario']);
+        $prestamo->load(['equipo.categoria', 'solicitante.programa', 'funcionario', 'canceladoPor', 'noEntregadoPor',
+            'entrega.funcionario', 'entrega.fotos', 'devoluciones.funcionario', 'devoluciones.fotos', 'devoluciones.pendienteResueltoPor']);
         $user = $request->user();
 
         return view('prestamos.show', [
@@ -168,6 +169,7 @@ class PrestamoController extends Controller
             'esPersonal' => $user->esAdministrador() || $user->esFuncionario(),
             'choques' => $user->can('atender', $prestamo) ? $this->servicio->choques($prestamo) : collect(),
             'volver' => $this->filtrosParaVolver($request),
+            'desde' => filter_var($request->query('desde'), FILTER_VALIDATE_INT) ?: null,
         ]);
     }
 
@@ -253,6 +255,23 @@ class PrestamoController extends Controller
     }
 
     /**
+     * El funcionario o el administrador cancela una solicitud aprobada, con su motivo.
+     * Si llegó desde una pendiente del mismo bloque («desde»), vuelve a ella para atenderla.
+     */
+    public function cancelarAprobada(CancelacionRequest $request, Prestamo $prestamo): RedirectResponse
+    {
+        $this->servicio->cancelarAprobada($prestamo, $request->user(), $request->validated('motivo_cancelacion'));
+
+        $mensaje = "Cancelaste la solicitud de {$prestamo->solicitante->name} para «{$prestamo->equipo->nombre}». Se le avisó con el motivo.";
+        $desde = Prestamo::where('estado', 'pendiente')->find(filter_var($request->input('desde'), FILTER_VALIDATE_INT) ?: 0);
+
+        return $desde
+            ? redirect()->route('prestamos.show', array_filter([$desde->id, 'volver' => http_build_query($this->filtrosParaVolver($request))]))
+                ->with('status', $mensaje.' Ahora puedes atender esta solicitud.')
+            : $this->volverAPendientes($request)->with('status', $mensaje);
+    }
+
+    /**
      * Vuelve a «Solicitudes por aprobar» con los filtros que tenía la lista (llegan en el campo «volver»).
      */
     private function volverAPendientes(Request $request): RedirectResponse
@@ -320,10 +339,12 @@ class PrestamoController extends Controller
     /**
      * Registra la devolución de un préstamo. Se hace en el módulo Devoluciones.
      */
-    public function devolver(Prestamo $prestamo)
+    public function foto(PrestamoFoto $foto): StreamedResponse
     {
-        Gate::authorize('atender', $prestamo);
+        Gate::authorize('view', $foto->prestamo);
+        $disco = Storage::disk('local');
+        abort_unless($disco->exists($foto->ruta), 404);
 
-        abort(501, 'Pendiente: se implementa en el módulo Devoluciones.');
+        return $disco->response($foto->ruta, $foto->nombre_original, ['Content-Type' => $foto->tipo_mime]);
     }
 }

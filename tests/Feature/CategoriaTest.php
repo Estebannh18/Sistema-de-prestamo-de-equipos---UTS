@@ -77,7 +77,10 @@ class CategoriaTest extends TestCase
     {
         $categoria = Categoria::create(['nombre' => 'Proyectores']);
         foreach (['disponible', 'disponible', 'prestado', 'mantenimiento'] as $i => $estado) {
-            Equipo::create(['categoria_id' => $categoria->id, 'codigo_inventario' => "PRO-00{$i}", 'nombre' => "Video beam {$i}", 'estado' => $estado]);
+            $equipo = Equipo::create(['categoria_id' => $categoria->id, 'codigo_inventario' => "PRO-00{$i}", 'nombre' => "Video beam {$i}", 'estado' => $estado]);
+            if ($estado === 'mantenimiento') {
+                $equipo->mantenimientos()->create(['desde' => today(), 'motivo' => 'Cambio de lámpara.']);
+            }
         }
 
         $this->actingAs($this->administrador())->get('/categorias')

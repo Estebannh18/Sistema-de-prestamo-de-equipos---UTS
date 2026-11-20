@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             EquipoSeeder::class,
             HorarioSeeder::class,
             SolicitudSeeder::class,
+            EntregaSeeder::class,
             NoticiaSeeder::class,
         ]);
     }

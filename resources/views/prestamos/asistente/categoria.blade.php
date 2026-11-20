@@ -8,7 +8,7 @@
     <div class="mt-6 rounded-3xl border-2 border-dashed border-marca-linea px-6 py-12 text-center">
         <x-icono nombre="buscar" class="mx-auto h-8 w-8 text-marca-gris" />
         <p class="mt-3 font-display font-bold text-marca-noche">No hay nada disponible para solicitar aquí.</p>
-        @if ($tipo === 'espacio')
+        @if ($tipo === 'espacio' && $usuario->esEstudiante())
             <p class="mt-1 text-sm text-marca-suave">Todavía no hay espacios habilitados para tu carrera{{ $usuario->programa ? ' ('.$usuario->programa->nombre.')' : '' }}.</p>
         @endif
     </div>

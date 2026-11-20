@@ -9,6 +9,7 @@ use App\Models\Horario;
 use App\Models\Prestamo;
 use App\Models\Programa;
 use App\Models\User;
+use App\Notifications\SolicitudCancelada;
 use App\Notifications\SolicitudPorAprobar;
 use App\Notifications\SolicitudRespondida;
 use App\Services\PrestamoService;
@@ -261,10 +262,10 @@ class SolicitudesTest extends TestCase
 
     public function test_un_equipo_en_mantenimiento_no_se_pide(): void
     {
-        $this->videoBeam->update(['estado' => 'mantenimiento']);
+        $this->videoBeam->mantenimientos()->create(['desde' => self::MANANA, 'hasta' => self::MANANA, 'motivo' => 'Cambio de lámpara.']);
 
         $this->actingAs($this->estudiante())->post('/prestamos', $this->datos($this->videoBeam))
-            ->assertSessionHasErrors(['solicitud' => 'El equipo «Video beam verde» está en mantenimiento.']);
+            ->assertSessionHasErrors(['solicitud' => 'El equipo «Video beam verde» está en mantenimiento ese día. Motivo: Cambio de lámpara.']);
     }
 
     public function test_la_pantalla_muestra_solo_dias_de_lunes_a_sabado(): void
@@ -314,7 +315,7 @@ class SolicitudesTest extends TestCase
         $this->assertStringContainsString('ya hay una solicitud aprobada para esa fecha y hora', $ana->notifications()->firstOrFail()->data['message']);
     }
 
-    public function test_un_equipo_aprobado_solo_rechaza_las_pendientes_que_se_cruzan(): void
+    public function test_una_aprobacion_automatica_no_rechaza_las_pendientes_de_otros(): void
     {
         $conMaximo = $this->estudiante();
         $this->prestamoAprobado($conMaximo, $this->videoBeam2);
@@ -322,10 +323,15 @@ class SolicitudesTest extends TestCase
         $pendiente = Prestamo::where('equipo_id', $this->videoBeam->id)->firstOrFail();
         $this->assertSame('pendiente', $pendiente->estado);
 
-        // Otro estudiante, sin préstamos, pide el mismo equipo y bloque: se aprueba solo y la pendiente se rechaza.
-        $this->actingAs($this->estudiante())->post('/prestamos', $this->datos($this->videoBeam));
-        $this->assertSame('rechazado', $pendiente->refresh()->estado);
-        $this->assertSame(PrestamoService::MOTIVO_AUTOMATICO, $pendiente->motivo_rechazo);
+        // Otro estudiante, sin préstamos, pide el mismo equipo y bloque: se aprueba solo, pero la pendiente sigue: decide el funcionario.
+        $otro = User::factory()->create(['rol' => 'estudiante', 'programa_id' => $this->sistemas, 'name' => 'Beto Ruiz']);
+        $this->actingAs($otro)->post('/prestamos', $this->datos($this->videoBeam));
+        $this->assertSame('pendiente', $pendiente->refresh()->estado);
+
+        // Para aprobarla, primero hay que cancelar la aprobada.
+        $this->actingAs(User::factory()->create(['rol' => 'funcionario']))->patch("/prestamos/{$pendiente->id}/aprobar")
+            ->assertSessionHasErrors(['solicitud' => 'Primero debes cancelar la solicitud aprobada de Beto Ruiz (estudiante) para el martes 24/11/2026, de 9:00 a. m. – 10:30 a. m..']);
+        $this->assertSame('pendiente', $pendiente->refresh()->estado);
     }
 
     public function test_rechazar_pide_motivo_y_se_lo_avisa_al_estudiante(): void
@@ -479,6 +485,107 @@ class SolicitudesTest extends TestCase
         $this->assertSame('aprobado', $deDocente->refresh()->estado);
     }
 
+    // ---------- Docentes ----------
+
+    private function docente(): User
+    {
+        return User::factory()->create(['rol' => 'docente', 'programa_id' => null, 'name' => 'Carlos Docente']);
+    }
+
+    private function otroSalon(string $codigo): Equipo
+    {
+        return $this->conHorario(Equipo::create(['categoria_id' => $this->salon->categoria_id, 'codigo_inventario' => $codigo, 'nombre' => "Salón {$codigo}", 'solicitable_por' => 'ambos']));
+    }
+
+    public function test_el_docente_pide_espacios_aprobados_solos_hasta_su_maximo(): void
+    {
+        $funcionario = User::factory()->create(['rol' => 'funcionario']);
+        $docente = $this->docente();
+        $sinCarreras = $this->otroSalon('401'); // Sin carreras habilitadas: solo docentes
+        $tercero = $this->otroSalon('402');
+
+        // Ve todos los espacios, también los que no son de su carrera o no tienen carreras
+        $this->actingAs($docente)->get(route('prestamos.create', ['fecha' => self::MANANA, 'tipo' => 'espacio', 'categoria' => 'todas']))->assertOk()
+            ->assertSee('Salón 304B')->assertSee('Salón 401')->assertSee('Salón 402');
+        $this->get(route('prestamos.create', ['fecha' => self::MANANA]))->assertSee('Si el bloque está libre, queda aprobado de una vez.');
+
+        // Dos espacios (su máximo por defecto): aprobados solos, sin avisar al funcionario
+        $this->post('/prestamos', $this->datos($this->salon))->assertRedirect('/prestamos');
+        $this->post('/prestamos', $this->datos($sinCarreras))->assertRedirect('/prestamos');
+        $this->assertSame(['aprobado', 'aprobado'], Prestamo::orderBy('id')->pluck('estado')->all());
+        $this->assertSame(['automatica', 'automatica'], Prestamo::orderBy('id')->pluck('aprobacion')->all());
+        $this->assertSame(0, $funcionario->notifications()->count());
+
+        // El tercero muestra el aviso y, si continúa, va a aprobación
+        $this->post('/prestamos', $this->datos($tercero))->assertRedirect()->assertSessionHas('confirmar');
+        $this->get(route('prestamos.create', ['equipo' => $tercero->id, 'fecha' => self::MANANA]))->assertSee('Enviar a aprobación');
+        $this->post('/prestamos', $this->datos($tercero, extra: ['confirmado' => 1]))->assertRedirect('/prestamos');
+        $this->assertSame('pendiente', Prestamo::where('equipo_id', $tercero->id)->value('estado'));
+        $this->assertSame(1, $funcionario->notifications()->count());
+
+        // Un estudiante no puede pedir el espacio sin carreras
+        $this->actingAs($this->estudiante())->post('/prestamos', $this->datos($sinCarreras, '13:30'))->assertSessionHasErrors('solicitud');
+    }
+
+    public function test_la_pendiente_del_estudiante_sigue_y_el_funcionario_cancela_la_del_docente_para_aprobarla(): void
+    {
+        $estudiante = $this->estudiante();
+        $this->actingAs($estudiante)->post('/prestamos', $this->datos($this->salon));
+        $delEstudiante = Prestamo::firstOrFail();
+        $this->travel(5)->minutes();
+
+        // El docente pide el mismo salón y bloque: se le aprueba, y la del estudiante no se rechaza
+        $docente = $this->docente();
+        $this->actingAs($docente)->post('/prestamos', $this->datos($this->salon))->assertRedirect('/prestamos');
+        $delDocente = Prestamo::where('solicitante_id', $docente->id)->firstOrFail();
+        $this->assertSame('aprobado', $delDocente->estado);
+        $this->assertSame('pendiente', $delEstudiante->refresh()->estado);
+
+        // El funcionario ve que primero debe cancelar la del docente
+        $funcionario = User::factory()->create(['rol' => 'funcionario']);
+        $this->actingAs($funcionario)->get("/prestamos/{$delEstudiante->id}")->assertOk()
+            ->assertSee('primero debes cancelar la solicitud aprobada de')->assertSee('Carlos Docente')
+            ->assertSee(e(route('prestamos.show', [$delDocente->id, 'desde' => $delEstudiante->id])), false);
+        $this->patch("/prestamos/{$delEstudiante->id}/aprobar")->assertSessionHasErrors('solicitud');
+
+        // Abre la del docente y la cancela con su motivo (obligatorio)
+        $this->get(route('prestamos.show', [$delDocente->id, 'desde' => $delEstudiante->id]))->assertOk()
+            ->assertSee('Motivo de la cancelación')->assertSee('name="desde" value="'.$delEstudiante->id.'"', false);
+        $this->patch("/prestamos/{$delDocente->id}/cancelar-aprobada", ['motivo_cancelacion' => ' '])->assertSessionHasErrors('motivo_cancelacion');
+        $motivo = 'Este salón ya estaba asignado para una actividad; solicita otro espacio.';
+        $this->patch("/prestamos/{$delDocente->id}/cancelar-aprobada", ['motivo_cancelacion' => $motivo, 'desde' => $delEstudiante->id])
+            ->assertRedirect(route('prestamos.show', $delEstudiante->id))->assertSessionHas('status');
+
+        $delDocente->refresh();
+        $this->assertSame(['cancelado', 'personal', $funcionario->id, $motivo], [$delDocente->estado, $delDocente->cancelada_por, $delDocente->cancelado_por_id, $delDocente->motivo_cancelacion]);
+        $aviso = $docente->notifications()->firstOrFail();
+        $this->assertSame(SolicitudCancelada::class, $aviso->type);
+        $this->assertStringContainsString($motivo, $aviso->data['message']);
+        $this->actingAs($docente)->get("/prestamos/{$delDocente->id}")->assertSee('La canceló')->assertSee($motivo);
+
+        // Ahora sí se aprueba la del estudiante
+        $this->actingAs($funcionario)->patch("/prestamos/{$delEstudiante->id}/aprobar")->assertSessionHasNoErrors();
+        $this->assertSame('aprobado', $delEstudiante->refresh()->estado);
+    }
+
+    public function test_cancelar_una_aprobada_solo_si_esta_aprobada_y_su_bloque_no_ha_terminado(): void
+    {
+        $funcionario = User::factory()->create(['rol' => 'funcionario']);
+        $this->actingAs($this->estudiante())->post('/prestamos', $this->datos($this->salon));
+        $pendiente = Prestamo::firstOrFail();
+        $this->actingAs($funcionario)->patch("/prestamos/{$pendiente->id}/cancelar-aprobada", ['motivo_cancelacion' => 'No aplica para pendientes.'])
+            ->assertSessionHasErrors(['solicitud' => 'Solo se puede cancelar una solicitud aprobada que todavía no se ha entregado.']);
+
+        $aprobada = $this->prestamoAprobado($this->estudiante(), $this->videoBeam);
+        $this->get("/prestamos/{$aprobada->id}")->assertSee('Cancelar esta solicitud');
+        // Terminó el bloque sin entrega: pasa sola a «No recogido» y ya no se cancela.
+        $this->travelTo(Carbon::parse(self::MANANA.' 11:00:00'));
+        $this->get("/prestamos/{$aprobada->id}")->assertDontSee('Cancelar esta solicitud')->assertSee('No recogido');
+        $this->assertSame('no_recogido', $aprobada->refresh()->estado);
+        $this->patch("/prestamos/{$aprobada->id}/cancelar-aprobada", ['motivo_cancelacion' => 'Ya terminó el bloque.'])
+            ->assertSessionHasErrors(['solicitud' => 'Solo se puede cancelar una solicitud aprobada que todavía no se ha entregado.']);
+    }
+
     // ---------- Cancelar ----------
 
     public function test_cancelar_dentro_del_tiempo_y_no_despues(): void
@@ -629,10 +736,11 @@ class SolicitudesTest extends TestCase
         // El formulario tiene el enlace para volver a la lista
         $this->get('/prestamos/create')->assertSee('Nueva solicitud')->assertSee(route('prestamos.index'), false);
 
-        // Los docentes todavía no crean solicitudes
+        // Los docentes también crean solicitudes
         $docente = User::factory()->create(['rol' => 'docente']);
         $this->actingAs($docente)->get('/prestamos')->assertOk()
-            ->assertDontSee('Crear solicitud')->assertSee('se habilitará en la siguiente etapa');
+            ->assertSee('Crear solicitud')->assertDontSee('siguiente etapa');
+        $this->get('/prestamos/create')->assertOk()->assertSee('Nueva solicitud');
     }
 
     public function test_los_pasos_anteriores_se_abren_y_borran_lo_elegido_despues(): void
@@ -692,9 +800,13 @@ class SolicitudesTest extends TestCase
         $docente = User::factory()->create(['rol' => 'docente']);
         $otroEstudiante = $this->estudiante();
 
-        // La solicitud de los docentes queda para después.
-        $this->actingAs($docente)->get('/prestamos/create')->assertOk()->assertSee('siguiente etapa');
-        $this->actingAs($docente)->post('/prestamos', $this->datos($this->videoBeam2))->assertForbidden();
+        // Los docentes solicitan; el personal no.
+        $this->actingAs($docente)->get('/prestamos/create')->assertOk()->assertDontSee('siguiente etapa');
+        $this->actingAs($docente)->post('/prestamos', $this->datos($this->videoBeam2))->assertRedirect('/prestamos');
+        $this->actingAs(User::factory()->create(['rol' => 'administrador']))->get('/prestamos/create')->assertForbidden();
+        // Solo el personal cancela una aprobada ajena.
+        $this->actingAs($otroEstudiante)->patch("/prestamos/{$prestamo->id}/cancelar-aprobada", ['motivo_cancelacion' => 'Porque sí, sin razón.'])->assertForbidden();
+        $this->assertSame('aprobado', $prestamo->refresh()->estado);
 
         $this->actingAs($otroEstudiante)->get("/prestamos/{$prestamo->id}")->assertForbidden();
         $this->actingAs($otroEstudiante)->get('/prestamos/pendientes')->assertForbidden();

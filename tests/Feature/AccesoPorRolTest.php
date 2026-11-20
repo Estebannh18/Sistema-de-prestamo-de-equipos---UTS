@@ -90,11 +90,10 @@ class AccesoPorRolTest extends TestCase
         $this->assertFalse($ambos->permiteSolicitud($funcionario));
         $this->assertTrue($soloEstudiante->permiteSolicitud($estudiante));
 
-        // La solicitud de los docentes queda para una etapa siguiente: por ahora ven el aviso.
-        $this->actingAs($docente)->get('/prestamos/create')
-            ->assertOk()->assertSee('se habilitará en la siguiente etapa');
-        // En los resultados del formulario de solicitud el estudiante solo ve lo que puede pedir.
+        // En los resultados del formulario de solicitud cada rol solo ve lo que puede pedir.
         $fecha = app(PrestamoService::class)->fechasSolicitables()->last()->toDateString();
+        $this->actingAs($docente)->get(route('prestamos.create', ['fecha' => $fecha, 'tipo' => 'equipo', 'categoria' => 'todas']))
+            ->assertOk()->assertSee('SAL-301')->assertSee('SAL-302')->assertDontSee('SAL-303');
         $this->actingAs($estudiante)->get(route('prestamos.create', ['fecha' => $fecha, 'tipo' => 'equipo', 'categoria' => 'todas']))
             ->assertDontSee('SAL-301')->assertSee('SAL-302')->assertSee('SAL-303');
     }

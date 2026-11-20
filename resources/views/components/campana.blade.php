@@ -43,7 +43,7 @@
                     <li class="px-4 py-3">
                         <div class="flex items-start gap-3">
                             <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-                                  :class="item.tipo === 'rechazada' ? 'bg-rose-100 text-rose-700' : (item.tipo === 'aprobada' ? 'bg-emerald-100 text-emerald-700' : 'bg-marca-limaclaro text-marca-oliva')">
+                                  :class="['rechazada', 'cancelada', 'no_entregado', 'devolucion_rechazada'].includes(item.tipo) ? 'bg-rose-100 text-rose-700' : (['aprobada', 'devolucion_aceptada'].includes(item.tipo) ? 'bg-emerald-100 text-emerald-700' : (item.tipo === 'por_corregir' ? 'bg-amber-100 text-amber-700' : 'bg-marca-limaclaro text-marca-oliva'))">
                                 <x-icono nombre="campana" class="h-4 w-4" />
                             </span>
                             <div class="min-w-0 flex-1">

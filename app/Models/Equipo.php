@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -69,6 +70,35 @@ class Equipo extends Model
         return $user->programa_id !== null && $this->programas->contains('id', $user->programa_id);
     }
 
+    /** Mantenimientos programados, del más próximo al más lejano. */
+    public function mantenimientos(): HasMany
+    {
+        return $this->hasMany(Mantenimiento::class)->orderBy('desde');
+    }
+
+    /** El mantenimiento que cubre ese día, si hay uno. */
+    public function mantenimientoEl(Carbon $fecha): ?Mantenimiento
+    {
+        return $this->mantenimientos()->vigenteEl($fecha)->first();
+    }
+
+    /**
+     * Pone el estado según hoy: «mantenimiento» si hoy tiene uno; si no, «prestado» si alguien
+     * lo tiene (entregado o por corregir); si no, «disponible». No impide reservarlo para después.
+     */
+    public function actualizarEstado(): void
+    {
+        $estado = match (true) {
+            $this->mantenimientos()->vigenteEl(today())->exists() => 'mantenimiento',
+            $this->prestamos()->whereIn('estado', ['entregado', 'por_corregir'])->exists() => 'prestado',
+            default => 'disponible',
+        };
+
+        if ($this->estado !== $estado) {
+            $this->update(['estado' => $estado]);
+        }
+    }
+
     public function prestamos(): HasMany
     {
         return $this->hasMany(Prestamo::class);
@@ -76,12 +106,14 @@ class Equipo extends Model
 
     /**
      * Lo que un estudiante o un docente puede ver y pedir (RF-06, RF-21):
-     * - equipos disponibles habilitados para su rol;
-     * - espacios disponibles: el docente, todos; el estudiante, solo los habilitados para su carrera.
+     * - equipos habilitados para su rol;
+     * - espacios: el docente, todos; el estudiante, solo los habilitados para su carrera.
+     * No aparecen los que están fuera de servicio (mantenimiento sin fecha de fin que ya empezó).
+     * Los que tienen un mantenimiento con fechas sí aparecen: solo esos días no se pueden pedir.
      */
     public function scopeDisponiblesPara(Builder $query, User $user): Builder
     {
-        return $query->where('estado', 'disponible')->where(function (Builder $query) use ($user) {
+        return $query->whereDoesntHave('mantenimientos', fn (Builder $query) => $query->indefinidoVigente())->where(function (Builder $query) use ($user) {
             $query->where(fn (Builder $query) => $query
                 ->whereHas('categoria', fn (Builder $query) => $query->where('tipo', 'equipo'))
                 ->whereIn('solicitable_por', [$user->rol, 'ambos']))
@@ -109,9 +141,10 @@ class Equipo extends Model
         };
     }
 
+    /** Se puede pedir en general: no está fuera de servicio (los días de un mantenimiento con fechas se revisan aparte). */
     public function estaDisponible(): bool
     {
-        return $this->estado === 'disponible';
+        return ! $this->mantenimientos()->indefinidoVigente()->exists();
     }
 
     /**

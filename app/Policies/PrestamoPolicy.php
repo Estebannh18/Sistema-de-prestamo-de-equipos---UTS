@@ -24,15 +24,16 @@ class PrestamoPolicy
     }
 
     /**
-     * Por ahora solo los estudiantes envían solicitudes: la de los docentes queda para una etapa siguiente.
+     * Estudiantes y docentes envían solicitudes, cada uno con sus reglas (PrestamoService::revisar).
      */
     public function solicitar(User $user): bool
     {
-        return $user->esEstudiante();
+        return $user->esDocente() || $user->esEstudiante();
     }
 
     /**
-     * El funcionario y el administrador atienden las solicitudes (el administrador no recibe avisos).
+     * El funcionario y el administrador atienden las solicitudes (el administrador no recibe avisos)
+     * y pueden cancelar una aprobada, con su motivo.
      */
     public function atender(User $user, ?Prestamo $prestamo = null): bool
     {

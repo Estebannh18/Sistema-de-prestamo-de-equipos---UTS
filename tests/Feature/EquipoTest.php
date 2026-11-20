@@ -40,9 +40,15 @@ class EquipoTest extends TestCase
         ];
     }
 
+    /** Si se pide en mantenimiento, se crea su mantenimiento con fechas (el estado sale de ahí). */
     private function salon(array $cambios = []): Equipo
     {
-        return Equipo::create($this->datos($cambios));
+        $equipo = Equipo::create($this->datos($cambios));
+        if ($equipo->estado === 'mantenimiento') {
+            $equipo->mantenimientos()->create(['desde' => today(), 'motivo' => 'En revisión.']);
+        }
+
+        return $equipo;
     }
 
     public function test_el_administrador_crea_un_salon_solo_para_docentes(): void
@@ -94,7 +100,8 @@ class EquipoTest extends TestCase
         $cables = Categoria::create(['nombre' => 'Cables', 'tipo' => 'equipo']);
         $this->post('/equipos', $this->datos(['categoria_id' => $cables->id, 'codigo_inventario' => 'X', 'solicitable_por' => 'nadie']))->assertSessionHasErrors('solicitable_por');
         $this->post('/equipos', $this->datos(['codigo_inventario' => 'Y', 'capacidad' => 0]))->assertSessionHasErrors('capacidad');
-        $this->post('/equipos', $this->datos(['codigo_inventario' => 'X', 'estado' => 'prestado']))->assertSessionHasErrors('estado');
+        // El estado no se elige en el formulario: un valor enviado a mano se ignora.
+        $this->post('/equipos', $this->datos(['codigo_inventario' => 'X', 'capacidad' => 0, 'estado' => 'prestado']))->assertSessionHasErrors('capacidad');
 
         $this->assertSame(1, Equipo::count());
     }

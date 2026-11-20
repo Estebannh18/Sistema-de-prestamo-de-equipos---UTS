@@ -8,6 +8,8 @@
         'reportes.prestamos' => 'reporte',
         'noticias.index' => 'noticias',
         'prestamos.pendientes' => 'reloj',
+        'entregas.index' => 'llave',
+        'devoluciones.index' => 'devolucion',
         'configuracion.edit' => 'ajustes',
         'seguridad.2fa' => 'seguridad',
     ];

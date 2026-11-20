@@ -13,7 +13,7 @@ class EquipoSeeder extends Seeder
      * Run the database seeds.
      * Se puede volver a ejecutar: actualiza los datos de cada código, pero el estado solo se asigna
      * al crear el registro, para no pisar el de uno que ya está prestado.
-     * Nada nace prestado: ese estado solo lo pone un préstamo aprobado.
+     * Nada nace prestado: ese estado solo lo pone la entrega de un préstamo.
      * Los espacios y su ubicación son datos de prueba del caso simulado.
      */
     public function run(): void
@@ -165,11 +165,18 @@ class EquipoSeeder extends Seeder
         $equipo = Equipo::firstOrNew(['codigo_inventario' => $codigo]);
         $equipo->fill($datos);
 
-        if (! $equipo->exists) {
+        $nuevo = ! $equipo->exists;
+        if ($nuevo) {
             $equipo->estado = $estado;
         }
 
         $equipo->save();
+
+        // El mantenimiento es un registro con fechas: los que nacen en mantenimiento quedan así
+        // desde hoy y sin fecha de fin, con la descripción como motivo.
+        if ($nuevo && $estado === 'mantenimiento') {
+            $equipo->mantenimientos()->create(['desde' => today(), 'hasta' => null, 'motivo' => $datos['descripcion'] ?? 'En mantenimiento.']);
+        }
 
         return $equipo;
     }

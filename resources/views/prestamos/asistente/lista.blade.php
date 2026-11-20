@@ -55,7 +55,7 @@
     </div>
 @else
     <ul class="mt-5 grid gap-3 xl:grid-cols-2">
-        @foreach ($resultados as ['equipo' => $opcion, 'libres' => $libres, 'delDia' => $delDia])
+        @foreach ($resultados as ['equipo' => $opcion, 'libres' => $libres, 'delDia' => $delDia, 'mantenimiento' => $mantenimiento])
             @php $sePuede = $libres > 0; @endphp
             <li @class([
                 'flex items-center gap-4 rounded-2xl border-2 bg-white p-4 transition',
@@ -81,6 +81,8 @@
                     <p class="mt-1 text-xs font-bold">
                         @if ($sePuede)
                             <span class="inline-flex items-center gap-1 text-emerald-700"><span class="h-2 w-2 rounded-full bg-emerald-600" aria-hidden="true"></span>{{ $libres }} {{ $libres === 1 ? 'bloque libre' : 'bloques libres' }}</span>
+                        @elseif ($mantenimiento)
+                            <span class="text-amber-700">En mantenimiento este día</span>
                         @elseif ($opcion->horarios_count === 0)
                             <span class="text-marca-suave">Sin horarios</span>
                         @elseif ($delDia === 0)

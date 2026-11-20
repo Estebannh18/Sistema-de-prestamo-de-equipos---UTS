@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
  * - Estudiante de prueba: un equipo aprobado solo y un espacio pendiente de aprobación.
  * - Segundo estudiante: el mismo espacio y bloque (el funcionario verá el choque), otro espacio
  *   que el funcionario rechaza con su motivo y un equipo que el estudiante cancela.
+ * - Docente de prueba: un espacio aprobado solo (los docentes no pasan por aprobación si no llegan a su máximo).
  *
  * Las fechas se calculan desde hoy. Si ya hay préstamos, no hace nada:
  *   php artisan db:seed --class=SolicitudSeeder
@@ -31,6 +32,7 @@ class SolicitudSeeder extends Seeder
         $estudiante = User::where('email', 'estudiante@prestamos.test')->first();
         $segundo = User::where('email', 'estudiante2@prestamos.test')->first();
         $funcionario = User::where('email', 'funcionario@prestamos.test')->first();
+        $docente = User::where('email', 'docente@prestamos.test')->first();
 
         if (! $estudiante || ! $segundo || ! $funcionario || Prestamo::exists()) {
             return;
@@ -62,6 +64,11 @@ class SolicitudSeeder extends Seeder
         // 5. Un equipo aprobado que el estudiante cancela a tiempo.
         if ($cancelada = $this->pedir($segundo, $otroEquipo, saltarDias: 2)) {
             $this->prestamos->cancelar($cancelada, $segundo);
+        }
+
+        // 6. El docente pide un espacio: queda aprobado solo.
+        if ($docente) {
+            $this->pedir($docente, $otroEspacio, saltarDias: 3);
         }
     }
 

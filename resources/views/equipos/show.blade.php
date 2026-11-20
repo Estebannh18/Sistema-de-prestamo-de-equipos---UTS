@@ -1,6 +1,12 @@
 @php($carreras = $equipo->carrerasHabilitadas())
 
 <x-modulo :titulo="$equipo->nombre" :pendiente="false">
+    @if (session('status'))
+        <p class="aviso-ok"><x-icono nombre="check" class="h-5 w-5 shrink-0" />{{ session('status') }}</p>
+    @endif
+    @if ($errors->has('mantenimiento'))
+        <p class="aviso-error"><x-icono nombre="alerta" class="h-5 w-5 shrink-0" />{{ $errors->first('mantenimiento') }}</p>
+    @endif
     @if ($equipo->esDeLaCarreraDe(Auth::user()))
         <p class="mb-5 inline-flex items-center gap-1.5 rounded-full bg-marca-lima px-3 py-1 font-display text-sm font-bold text-marca-noche">
             <x-icono nombre="estrella" class="h-4 w-4" />Habilitado para tu carrera
@@ -87,6 +93,50 @@
             </div>
         @endif
     </section>
+
+    {{-- Mantenimiento: actual y próximos. El personal lo programa y lo termina. --}}
+    @php($esPersonal = Auth::user()->esAdministrador() || Auth::user()->esFuncionario())
+    @if ($esPersonal || $equipo->mantenimientos->isNotEmpty())
+        <section class="mt-8 border-t border-marca-linea pt-6" aria-labelledby="mantenimiento-titulo">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="mantenimiento-titulo" class="flex items-center gap-2 font-display text-base font-bold text-marca-noche">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700"><x-icono nombre="herramienta" class="h-4 w-4" /></span>
+                    Mantenimiento
+                </h2>
+                @if ($esPersonal)
+                    <a class="boton-claro text-sm" href="{{ route('mantenimientos.create', $equipo) }}"><x-icono nombre="mas" class="h-4 w-4" />Programar mantenimiento</a>
+                @endif
+            </div>
+            @if ($equipo->mantenimientos->isEmpty())
+                <p class="mt-3 text-sm text-marca-suave">No tiene mantenimientos programados.</p>
+            @else
+                <ul class="mt-4 space-y-2">
+                    @foreach ($equipo->mantenimientos as $mantenimiento)
+                        <li class="flex flex-wrap items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-sm {{ $mantenimiento->yaEmpezo() ? 'border-amber-300 bg-amber-50' : 'border-marca-linea' }}">
+                            <div class="min-w-0">
+                                <p class="font-bold text-marca-noche">
+                                    {{ $mantenimiento->yaEmpezo() ? ($mantenimiento->esIndefinido() ? 'Fuera de servicio' : 'En mantenimiento') : 'Programado' }}
+                                    <span class="font-normal text-marca-suave">· {{ $mantenimiento->periodo() }}</span>
+                                </p>
+                                <p class="mt-0.5 text-marca-noche">{{ $mantenimiento->motivo }}</p>
+                                @if ($esPersonal && $mantenimiento->creadoPor)
+                                    <p class="mt-0.5 text-xs text-marca-suave">Lo programó {{ $mantenimiento->creadoPor->name }} el {{ $mantenimiento->created_at->format('d/m/Y') }}.</p>
+                                @endif
+                            </div>
+                            @if ($esPersonal)
+                                <form method="POST" action="{{ route('mantenimientos.terminar', $mantenimiento) }}"
+                                      onsubmit="return confirm('{{ $mantenimiento->yaEmpezo() ? '¿Terminar el mantenimiento? Se podrá pedir desde hoy.' : '¿Quitar este mantenimiento programado?' }}');">
+                                    @csrf
+                                    @method('PATCH')
+                                    <x-secondary-button type="submit" class="!px-4 !py-1.5 text-xs">{{ $mantenimiento->yaEmpezo() ? 'Terminar' : 'Quitar' }}</x-secondary-button>
+                                </form>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+    @endif
 
     <p class="mt-6"><a class="enlace" href="{{ route('equipos.index') }}">Volver al listado</a></p>
 </x-modulo>

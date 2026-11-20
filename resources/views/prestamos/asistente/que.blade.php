@@ -4,7 +4,9 @@
 
     $tarjetas = [
         'equipo' => ['Un equipo', 'portatil', 'Si el bloque está libre, queda aprobado de una vez.', 'No hay equipos disponibles para pedir en este momento.'],
-        'espacio' => ['Un espacio', 'salon', 'Pasa por aprobación del funcionario.', 'Todavía no hay espacios habilitados para tu carrera'.($usuario->programa ? ' ('.$usuario->programa->nombre.')' : '').'.'],
+        'espacio' => $usuario->esDocente()
+            ? ['Un espacio', 'salon', 'Si el bloque está libre, queda aprobado de una vez.', 'No hay espacios disponibles para pedir en este momento.']
+            : ['Un espacio', 'salon', 'Pasa por aprobación del funcionario.', 'Todavía no hay espacios habilitados para tu carrera'.($usuario->programa ? ' ('.$usuario->programa->nombre.')' : '').'.'],
     ];
 @endphp
 <h2 class="mt-1 font-display text-2xl font-extrabold text-marca-noche">¿Qué necesitas pedir?</h2>

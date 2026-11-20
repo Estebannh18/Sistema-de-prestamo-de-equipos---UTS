@@ -1,7 +1,7 @@
 @php
     use App\Models\Configuracion;
 
-    $iconos = ['maximos' => 'check', 'cancelacion' => 'cerrar', 'anticipacion' => 'reloj'];
+    $iconos = ['maximos' => 'check', 'cancelacion' => 'cerrar', 'anticipacion' => 'reloj', 'entregas' => 'devolucion'];
     $tituloSeccion = 'flex items-center gap-2 font-display text-base font-bold text-marca-noche';
     $iconoSeccion = 'flex h-8 w-8 items-center justify-center rounded-full bg-marca-limaclaro text-marca-oliva';
     $porGrupo = collect(Configuracion::VALORES)->groupBy(fn ($d) => $d[0], preserveKeys: true);
@@ -12,7 +12,7 @@
         <p class="aviso-ok"><x-icono nombre="check" class="h-5 w-5 shrink-0" />{{ session('status') }}</p>
     @endif
 
-    <p class="text-sm text-marca-suave">Reglas de las solicitudes de préstamo. Los cambios se aplican a las solicitudes nuevas; las que ya existen no cambian.</p>
+    <p class="text-sm text-marca-suave">Reglas de las solicitudes, las entregas y las devoluciones. Los cambios se aplican a las solicitudes nuevas; las que ya existen no cambian.</p>
 
     <form method="POST" action="{{ route('configuracion.update') }}" class="mt-6 space-y-8" novalidate>
         @csrf
@@ -35,7 +35,7 @@
                                 <x-text-input id="{{ $clave }}" name="{{ $clave }}" type="number" :min="$min" :max="$max" step="1" inputmode="numeric" required
                                               class="block w-full pr-20 tabular-nums" :value="$valor" x-model="valor" />
                                 <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs font-bold text-marca-suave">
-                                    {{ $unidad === 'minutos' ? 'minutos' : 'aprobados' }}
+                                    {{ ['minutos' => 'minutos', 'fotos' => 'fotos'][$unidad] ?? 'aprobados' }}
                                 </span>
                             </div>
                             @if ($unidad === 'minutos')

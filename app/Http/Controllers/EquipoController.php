@@ -100,7 +100,11 @@ class EquipoController extends Controller
             abort_unless($equipo->estaDisponible() && $equipo->permiteSolicitud($user), 403);
         }
 
-        return view('equipos.show', ['equipo' => $equipo->load(['categoria', 'programas', 'horarios'])]);
+        return view('equipos.show', ['equipo' => $equipo->load([
+            'categoria', 'programas', 'horarios',
+            // Mantenimientos actuales y próximos.
+            'mantenimientos' => fn ($query) => $query->where(fn ($query) => $query->whereNull('hasta')->orWhereDate('hasta', '>=', today()->toDateString()))->with('creadoPor'),
+        ])]);
     }
 
     /**
@@ -114,18 +118,13 @@ class EquipoController extends Controller
     }
 
     /**
-     * Actualiza un equipo o un espacio. El estado de uno prestado no se cambia a mano (RF-17).
+     * Actualiza un equipo o un espacio. El estado no se cambia aquí (RF-17): lo ponen el mantenimiento
+     * programado, la entrega y la devolución.
      */
     public function update(Request $request, Equipo $equipo): RedirectResponse
     {
         $categoria = $this->categoriaElegida($request);
-        $reglas = $this->reglas($categoria, $equipo);
-
-        if ($equipo->estado === 'prestado') {
-            unset($reglas['estado']);
-        }
-
-        $datos = $request->validate($reglas);
+        $datos = $request->validate($this->reglas($categoria, $equipo));
 
         $equipo->update($this->normalizar($datos, $categoria));
         $this->guardarCarreras($equipo, $categoria, $datos);
@@ -184,7 +183,6 @@ class EquipoController extends Controller
             'categoria_id' => ['required', Rule::exists(Categoria::class, 'id')],
             'codigo_inventario' => ['required', 'string', 'max:50', Rule::unique(Equipo::class)->ignore($equipo)],
             'nombre' => ['required', 'string', 'max:255'],
-            'estado' => ['required', Rule::in(['disponible', 'mantenimiento'])],
             'descripcion' => ['nullable', 'string'],
         ];
 

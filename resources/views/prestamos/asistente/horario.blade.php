@@ -10,7 +10,9 @@
         'propio' => ['Ya lo pediste', 'text-marca-oliva'],
         'pasado' => ['Ya pasó', 'text-marca-suave'],
         'anticipacion' => ['Muy pronto para pedirlo', 'text-amber-700'],
+        'mantenimiento' => ['En mantenimiento', 'text-amber-700'],
     ];
+    $mantenimientoDelDia = $equipo->mantenimientoEl($fecha);
     $hayLibres = $bloques->contains('estado', 'libre');
     $elegido = $horarioElegido ?: optional($bloques->firstWhere('estado', 'libre'))['horario']?->id;
     $bloqueElegido = $bloques->first(fn ($b) => $b['horario']->id === $elegido && $b['estado'] === 'libre');
@@ -84,6 +86,13 @@
         <a href="{{ $irA['dia'] }}" class="enlace text-xs font-semibold">Cambiar el día</a>
     </h3>
 
+    @if ($mantenimientoDelDia)
+        <p class="mt-3 flex items-start gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
+            <x-icono nombre="herramienta" class="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{{ $equipo->nombre }} está en mantenimiento {{ $mantenimientoDelDia->periodo() }}: {{ $mantenimientoDelDia->motivo }} <a href="{{ $irA['dia'] }}" class="enlace">Elige otro día</a>.</span>
+        </p>
+    @endif
+
     @if ($bloques->isEmpty())
         <p class="mt-3 rounded-2xl border-2 border-dashed border-marca-linea px-4 py-6 text-center text-sm text-marca-suave">
             {{ $equipo->nombre }} no se presta este día. <a href="{{ $irA['dia'] }}" class="enlace">Elige otro día</a>.
@@ -134,7 +143,7 @@
                 </p>
                 <div class="flex flex-col items-end gap-1">
                     <button type="submit" @disabled(! $hayLibres) class="boton-claro disabled:cursor-not-allowed disabled:opacity-50">
-                        {{ $esEspacio || $revision['requiereAprobacion'] ? 'Enviar a aprobación' : 'Solicitar' }} <span aria-hidden="true">→</span>
+                        {{ $revision['requiereAprobacion'] ? 'Enviar a aprobación' : 'Solicitar' }} <span aria-hidden="true">→</span>
                     </button>
                     @unless ($hayLibres)
                         <span class="text-xs text-white/70">No hay bloques libres este día. Elige otro día.</span>

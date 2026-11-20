@@ -20,7 +20,7 @@ class ConfiguracionTest extends TestCase
 
     public function test_los_valores_por_defecto_se_cargan_al_migrar(): void
     {
-        $this->assertSame(10, Configuracion::count());
+        $this->assertSame(13, Configuracion::count());
         $estudiante = User::factory()->create(['rol' => 'estudiante']);
         $docente = User::factory()->create(['rol' => 'docente']);
 
@@ -33,6 +33,11 @@ class ConfiguracionTest extends TestCase
         $this->assertSame('1 h 30 min', Configuracion::duracion(90));
         $this->assertSame('24 h', Configuracion::duracion(1440));
         $this->assertSame('45 min', Configuracion::duracion(45));
+
+        // Entregas y devoluciones
+        $this->assertSame(30, Configuracion::minutosAnticipacionEntrega());
+        $this->assertSame(60, Configuracion::minutosDevolucion());
+        $this->assertSame(3, Configuracion::maximoFotos());
     }
 
     public function test_el_administrador_ve_y_cambia_la_configuracion(): void
@@ -43,14 +48,17 @@ class ConfiguracionTest extends TestCase
             ->assertSee('Máximo de préstamos aprobados')
             ->assertSee('Tiempo mínimo para cancelar')
             ->assertSee('Anticipación mínima para solicitar')
-            ->assertSee('Espacios, para estudiantes');
+            ->assertSee('Espacios, para estudiantes')
+            ->assertSee('Entregas y devoluciones')->assertSee('Tiempo para devolver después del fin')->assertSee('Fotos por entrega o devolución');
 
-        $this->put('/configuracion', $this->valores(['max_equipos_estudiante' => 3, 'cancelacion_estudiante' => 60]))
+        $this->put('/configuracion', $this->valores(['max_equipos_estudiante' => 3, 'cancelacion_estudiante' => 60, 'max_fotos' => 5, 'tiempo_devolucion' => 90]))
             ->assertRedirect('/configuracion')->assertSessionHas('status');
 
         $this->assertSame(3, Configuracion::valor('max_equipos_estudiante'));
         $this->assertSame(60, Configuracion::valor('cancelacion_estudiante'));
         $this->assertSame(2, Configuracion::valor('max_equipos_docente'));
+        $this->assertSame(5, Configuracion::maximoFotos());
+        $this->assertSame(90, Configuracion::minutosDevolucion());
     }
 
     /**
@@ -65,6 +73,8 @@ class ConfiguracionTest extends TestCase
             'cancelación negativa' => ['cancelacion_docente', -5],
             'anticipación vacía' => ['anticipacion_equipos_estudiante', ''],
             'anticipación de más de dos semanas' => ['anticipacion_espacios_docente', 20161],
+            'más de 10 fotos' => ['max_fotos', 11],
+            'devolución de más de un día' => ['tiempo_devolucion', 1441],
         ];
     }
 

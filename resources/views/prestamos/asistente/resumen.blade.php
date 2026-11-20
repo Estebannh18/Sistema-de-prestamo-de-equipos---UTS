@@ -36,10 +36,11 @@
             {{-- El texto va dentro de un span: en un contenedor flex, cada pedazo suelto se separaría. --}}
             <li class="flex items-start gap-2"><x-icono nombre="info" class="h-4 w-4 shrink-0 text-marca-oliva" />
                 <span>
-                    @if ($tipo === 'espacio')
+                    @if ($tipo === 'espacio' && $usuario->esEstudiante())
                         Los espacios pasan por <b>aprobación del funcionario</b>. Te avisaremos cuando responda.
                     @else
                         Si el bloque está libre, tu préstamo queda <b>aprobado de una vez</b>.
+                        Si ya llegaste a tu máximo ({{ Configuracion::maximo($usuario, $tipo === 'espacio') }} en curso), pasa a aprobación del funcionario.
                     @endif
                 </span>
             </li>

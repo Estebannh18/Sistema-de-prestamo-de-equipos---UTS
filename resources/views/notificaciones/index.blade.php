@@ -24,7 +24,7 @@
             @foreach ($notificaciones as $notificacion)
                 @php($tipo = $notificacion->data['type'] ?? '')
                 <li class="flex flex-wrap items-start gap-4 rounded-3xl border p-4 {{ $notificacion->read_at ? 'border-marca-linea bg-white' : 'border-marca-lima bg-marca-limaclaro/50' }}">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ $tipo === 'rechazada' ? 'bg-rose-100 text-rose-700' : ($tipo === 'aprobada' ? 'bg-emerald-100 text-emerald-700' : 'bg-marca-limaclaro text-marca-oliva') }}">
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ match (true) { in_array($tipo, ['rechazada', 'cancelada', 'no_entregado', 'devolucion_rechazada'], true) => 'bg-rose-100 text-rose-700', in_array($tipo, ['aprobada', 'devolucion_aceptada'], true) => 'bg-emerald-100 text-emerald-700', $tipo === 'por_corregir' => 'bg-amber-100 text-amber-700', default => 'bg-marca-limaclaro text-marca-oliva' } }}">
                         <x-icono nombre="campana" class="h-5 w-5" />
                     </span>
                     <div class="min-w-0 flex-1">

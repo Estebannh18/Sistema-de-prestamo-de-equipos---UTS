@@ -2,24 +2,36 @@
 
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\DevolucionController;
+use App\Http\Controllers\EntregaController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\HorarioController;
-use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\MantenimientoController;
 use App\Http\Controllers\NoticiaController;
+use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\PrestamoController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\SeguridadController;
 use App\Http\Controllers\UsuarioController;
 use App\Models\Noticia;
+use App\Models\Prestamo;
 use Illuminate\Support\Facades\Route;
 
 // Portada pública del sistema.
 Route::view('/', 'inicio')->name('inicio');
 
-// Inicio de cada usuario: sus módulos y las 3 noticias más recientes.
+// Inicio de cada usuario: sus módulos, las 3 noticias más recientes y, para el personal, lo pendiente de hoy.
 Route::get('/dashboard', function () {
-    return view('dashboard', ['noticias' => Noticia::query()->recientes()->take(3)->get()]);
+    $usuario = auth()->user();
+    $paraHoy = $usuario->esAdministrador() || $usuario->esFuncionario() ? [
+        'Por aprobar' => [Prestamo::where('estado', 'pendiente')->count(), 'prestamos.pendientes', [], 'reloj'],
+        'Por entregar hoy' => [Prestamo::where('estado', 'aprobado')->whereDate('fecha', today())->count(), 'entregas.index', [], 'llave'],
+        'Por recibir' => [Prestamo::where('estado', 'entregado')->count(), 'devoluciones.index', [], 'devolucion'],
+        'Por corregir' => [Prestamo::where('estado', 'por_corregir')->count(), 'devoluciones.index', ['ver' => 'por_corregir'], 'alerta'],
+    ] : [];
+
+    return view('dashboard', ['noticias' => Noticia::query()->recientes()->take(3)->get(), 'paraHoy' => $paraHoy]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
@@ -56,7 +68,18 @@ Route::middleware('auth')->group(function () {
         Route::get('prestamos/pendientes', [PrestamoController::class, 'pendientes'])->name('prestamos.pendientes');
         Route::patch('prestamos/{prestamo}/aprobar', [PrestamoController::class, 'aprobar'])->name('prestamos.aprobar');
         Route::patch('prestamos/{prestamo}/rechazar', [PrestamoController::class, 'rechazar'])->name('prestamos.rechazar');
-        Route::patch('prestamos/{prestamo}/devolver', [PrestamoController::class, 'devolver'])->name('prestamos.devolver');
+        Route::patch('prestamos/{prestamo}/cancelar-aprobada', [PrestamoController::class, 'cancelarAprobada'])->name('prestamos.cancelar-aprobada');
+        Route::get('equipos/{equipo}/mantenimientos/create', [MantenimientoController::class, 'create'])->name('mantenimientos.create');
+        Route::post('equipos/{equipo}/mantenimientos', [MantenimientoController::class, 'store'])->name('mantenimientos.store');
+        Route::patch('mantenimientos/{mantenimiento}/terminar', [MantenimientoController::class, 'terminar'])->name('mantenimientos.terminar');
+        Route::get('entregas', [EntregaController::class, 'index'])->name('entregas.index');
+        Route::get('prestamos/{prestamo}/entrega', [EntregaController::class, 'create'])->name('entregas.create');
+        Route::post('prestamos/{prestamo}/entrega', [EntregaController::class, 'store'])->name('entregas.store');
+        Route::patch('prestamos/{prestamo}/no-entregado', [EntregaController::class, 'noEntregado'])->name('entregas.no-entregado');
+        Route::get('devoluciones', [DevolucionController::class, 'index'])->name('devoluciones.index');
+        Route::get('prestamos/{prestamo}/devolucion', [DevolucionController::class, 'create'])->name('devoluciones.create');
+        Route::post('prestamos/{prestamo}/devolucion', [DevolucionController::class, 'store'])->name('devoluciones.store');
+        Route::patch('devoluciones/{devolucion}/resolver', [DevolucionController::class, 'resolverPendiente'])->name('devoluciones.resolver');
         Route::get('reportes/prestamos', [ReporteController::class, 'index'])->name('reportes.prestamos');
         Route::get('reportes/prestamos/pdf', [ReporteController::class, 'pdf'])->name('reportes.prestamos.pdf');
         // Crear, editar y borrar noticias. Qué noticia puede editar cada uno lo decide NoticiaPolicy.
@@ -65,6 +88,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('equipos', EquipoController::class)->only(['index', 'show']);
     Route::resource('prestamos', PrestamoController::class)->only(['index', 'show']);
+    // Fotos de entregas y devoluciones: solo el personal y el solicitante, con la sesión iniciada.
+    Route::get('prestamos/fotos/{foto}', [PrestamoController::class, 'foto'])->name('prestamos.foto');
 
     // Notificaciones dentro de la app (campana y bandeja).
     Route::get('notificaciones', [NotificacionController::class, 'index'])->name('notificaciones.index');

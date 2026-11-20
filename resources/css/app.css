@@ -108,22 +108,27 @@
         @apply bg-emerald-100 text-emerald-800 ring-emerald-200;
     }
 
-    .insignia-prestado {
+    .insignia-prestado,
+    .insignia-entregado {
         @apply bg-sky-100 text-sky-800 ring-sky-200;
     }
 
     .insignia-mantenimiento,
-    .insignia-pendiente {
+    .insignia-pendiente,
+    .insignia-por_corregir {
         @apply bg-amber-100 text-amber-800 ring-amber-200;
     }
 
     .insignia-rechazado,
-    .insignia-vencido {
+    .insignia-vencido,
+    .insignia-no_entregado,
+    .insignia-devolucion_rechazada {
         @apply bg-rose-100 text-rose-800 ring-rose-200;
     }
 
     .insignia-devuelto,
-    .insignia-cancelado {
+    .insignia-cancelado,
+    .insignia-no_recogido {
         @apply bg-slate-100 text-slate-700 ring-slate-200;
     }
 
@@ -152,7 +157,12 @@
     .insignia-rechazado::before,
     .insignia-vencido::before,
     .insignia-devuelto::before,
-    .insignia-cancelado::before {
+    .insignia-cancelado::before,
+    .insignia-entregado::before,
+    .insignia-por_corregir::before,
+    .insignia-no_entregado::before,
+    .insignia-devolucion_rechazada::before,
+    .insignia-no_recogido::before {
         content: '';
         @apply h-1.5 w-1.5 rounded-full bg-current;
     }

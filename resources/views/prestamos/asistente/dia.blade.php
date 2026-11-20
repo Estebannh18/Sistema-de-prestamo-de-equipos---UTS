@@ -52,12 +52,14 @@
                         $festivo = Festivos::nombre($dia);
                         $enRango = $dia->betweenIncluded(today(), $ultimo);
                         $sePresta = ! $equipo || in_array($dia->dayOfWeekIso, $diasConHorario ?? [], true);
-                        $elegible = $disponibles->has($dia->toDateString()) && $sePresta;
+                        $enMantenimiento = ($mantenimientos ?? collect())->first(fn ($m) => $dia->greaterThanOrEqualTo($m->desde) && ($m->hasta === null || $dia->lessThanOrEqualTo($m->hasta)));
+                        $elegible = $disponibles->has($dia->toDateString()) && $sePresta && ! $enMantenimiento;
                         $motivo = match (true) {
                             $elegible => null,
                             ! $enRango => $dia->lessThan(today()) ? 'Ya pasó' : 'Fuera del rango que se puede pedir',
                             $festivo !== null => 'Festivo: '.$festivo,
                             $dia->isSunday() => 'Domingo: no hay préstamos',
+                            $enMantenimiento !== null => 'En mantenimiento: '.$enMantenimiento->motivo,
                             default => ($equipo?->nombre ?? 'Este equipo').' no se presta este día',
                         };
                     @endphp
@@ -76,7 +78,8 @@
                               @class([
                                   'relative flex aspect-square items-center justify-center rounded-xl text-sm font-semibold',
                                   'bg-rose-50 text-rose-400 line-through decoration-rose-300' => $festivo !== null && $enRango,
-                                  'bg-marca-crema/70 text-marca-gris' => $festivo === null && $enRango,
+                                  'bg-amber-50 text-amber-500 line-through decoration-amber-300' => $festivo === null && $enRango && $enMantenimiento && ! $dia->isSunday(),
+                                  'bg-marca-crema/70 text-marca-gris' => $festivo === null && $enRango && ! ($enMantenimiento && ! $dia->isSunday()),
                                   'text-marca-gris/50' => ! $enRango,
                               ])>
                             {{ $d }}
@@ -98,7 +101,17 @@
     <li class="flex items-center gap-2"><span class="h-4 w-4 rounded-md border-2 border-marca-lima bg-marca-limaclaro"></span>Hoy</li>
     <li class="flex items-center gap-2"><span class="h-4 w-4 rounded-md bg-rose-50 ring-1 ring-inset ring-rose-200"></span>Festivo</li>
     <li class="flex items-center gap-2"><span class="h-4 w-4 rounded-md bg-marca-crema ring-1 ring-inset ring-marca-linea"></span>Domingo o no disponible</li>
+    @if (($mantenimientos ?? collect())->isNotEmpty())
+        <li class="flex items-center gap-2"><span class="h-4 w-4 rounded-md bg-amber-50 ring-1 ring-inset ring-amber-200"></span>En mantenimiento</li>
+    @endif
 </ul>
+
+@foreach ($mantenimientos ?? [] as $mantenimiento)
+    <p class="mt-3 flex items-start gap-2 rounded-2xl bg-amber-50 px-4 py-2.5 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
+        <x-icono nombre="herramienta" class="mt-0.5 h-4 w-4 shrink-0" />
+        <span>{{ $equipo->nombre }} estará en mantenimiento {{ $mantenimiento->periodo() }}: {{ $mantenimiento->motivo }}</span>
+    </p>
+@endforeach
 
 @if ($festivosDelPeriodo->isNotEmpty())
     <p class="mt-3 flex items-start gap-2 rounded-2xl bg-rose-50 px-4 py-2.5 text-sm text-rose-800 ring-1 ring-inset ring-rose-200">

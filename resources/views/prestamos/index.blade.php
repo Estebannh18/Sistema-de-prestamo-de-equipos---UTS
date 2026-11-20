@@ -6,9 +6,14 @@
 @php
     use App\Models\Configuracion;
 
-    $estados = [null => 'Todas', 'pendiente' => 'Pendientes', 'aprobado' => 'Aprobadas', 'rechazado' => 'Rechazadas', 'cancelado' => 'Canceladas'];
+    $estados = [
+        null => 'Todas', 'pendiente' => 'Pendientes', 'aprobado' => 'Aprobadas', 'entregado' => 'Entregadas', 'por_corregir' => 'Por corregir',
+        'devuelto' => 'Devueltas', 'rechazado' => 'Rechazadas', 'cancelado' => 'Canceladas', 'no_recogido' => 'No recogidas',
+        'no_entregado' => 'No entregadas', 'devolucion_rechazada' => 'Devolución rechazada',
+    ];
     $puedeSolicitar = Auth::user()->can('solicitar', App\Models\Prestamo::class);
-    $nombresEstado = ['pendiente' => 'pendiente de aprobación', 'aprobado' => 'aprobada', 'rechazado' => 'rechazada', 'cancelado' => 'cancelada', 'devuelto' => 'devuelta'];
+    $cuando = fn ($fecha) => $fecha?->format('d/m/Y \a \l\a\s g:i a');
+    $hora = fn ($fecha) => $fecha?->locale('es')->isoFormat('h:mm a');
 @endphp
 
 <x-modulo :titulo="$esPersonal ? 'Préstamos' : 'Solicitudes'" :pendiente="false">
@@ -29,11 +34,7 @@
                 <div>
                     <h2 class="font-display text-xl font-extrabold text-marca-noche">Mis solicitudes</h2>
                     <p class="text-sm text-marca-suave">
-                        @if ($puedeSolicitar)
-                            Pide un equipo o un espacio en 5 pasos: el día, qué necesitas, la categoría, cuál y el bloque.
-                        @else
-                            La solicitud para docentes tendrá sus propias reglas y se habilitará en la siguiente etapa.
-                        @endif
+                        Pide un equipo o un espacio en 5 pasos: el día, qué necesitas, la categoría, cuál y el bloque.
                     </p>
                 </div>
             </div>
@@ -46,7 +47,7 @@
     <div class="flex flex-wrap items-center justify-between gap-4">
         <nav class="flex flex-wrap gap-2" aria-label="Filtrar por estado">
             @foreach ($estados as $valor => $etiqueta)
-                @php($activa = $estadoActual === ($valor ?: null))
+                @php $activa = $estadoActual === ($valor ?: null); @endphp
                 <a href="{{ route('prestamos.index', array_filter(['estado' => $valor ?: null])) }}" @if ($activa) aria-current="page" @endif
                    class="rounded-full px-4 py-1.5 font-display text-sm font-bold ring-1 ring-inset transition focus:outline-none focus-visible:ring-4 focus-visible:ring-marca-lima/60 {{ $activa ? 'bg-marca-bosque text-white ring-marca-bosque' : 'bg-white text-marca-bosque ring-marca-linea hover:bg-marca-crema' }}">
                     {{ $etiqueta }}
@@ -87,7 +88,7 @@
                             </td>
                             <td>{{ $prestamo->equipo->nombre }}<span class="block text-xs text-marca-suave">{{ $prestamo->equipo->categoria->nombre }}</span></td>
                             <td class="whitespace-nowrap">{{ $prestamo->fecha?->format('d/m/Y') ?? '—' }}<span class="block text-xs text-marca-suave">{{ $prestamo->bloque() }}</span></td>
-                            <td><span class="insignia insignia-{{ $prestamo->estado }}">{{ $prestamo->estado }}</span></td>
+                            <td><span class="insignia insignia-{{ $prestamo->estado }} normal-case">{{ $prestamo->nombreEstado() }}</span></td>
                             <td><a class="enlace text-sm" href="{{ route('prestamos.show', $prestamo) }}">Ver</a></td>
                         </tr>
                     @endforeach
@@ -112,27 +113,53 @@
                                 </p>
                             </div>
                         </div>
-                        <span class="insignia insignia-{{ $prestamo->estado }} normal-case">{{ ucfirst($nombresEstado[$prestamo->estado] ?? $prestamo->estado) }}</span>
+                        <span class="insignia insignia-{{ $prestamo->estado }} normal-case">{{ $prestamo->nombreEstado() }}</span>
                     </div>
 
                     <div class="mt-3 text-sm">
-                        @switch($prestamo->estado)
-                            @case('aprobado')
-                                <p class="text-emerald-800">{{ $prestamo->aprobacion === 'automatica' ? 'Aprobada automáticamente: estaba libre.' : 'Aprobada por '.($prestamo->funcionario?->name ?? 'el funcionario').'.' }}</p>
-                                @break
-                            @case('pendiente')
-                                <p class="text-amber-800">Esperando la respuesta del funcionario. Te avisaremos en la campana.</p>
-                                @break
-                            @case('rechazado')
-                                <p class="rounded-2xl bg-rose-50 px-4 py-2.5 text-rose-800 ring-1 ring-inset ring-rose-200"><b>Motivo:</b> {{ $prestamo->motivo_rechazo }}</p>
-                                @break
-                            @case('cancelado')
-                                <p class="text-marca-suave">La cancelaste el {{ $prestamo->cancelado_en?->format('d/m/Y \a \l\a\s g:i a') }}.</p>
-                                @break
-                        @endswitch
+                        @php
+                            $ultima = $prestamo->ultimaDevolucion;
+                            $aviso = 'rounded-2xl px-4 py-2.5 ring-1 ring-inset';
+                        @endphp
+                        @if ($prestamo->estado === 'aprobado')
+                            <p class="text-emerald-800">{{ $prestamo->aprobacion === 'automatica' ? 'Aprobada automáticamente: estaba libre.' : 'Aprobada por '.($prestamo->funcionario?->name ?? 'el funcionario').'.' }}
+                                Recógelo en la dependencia de préstamos desde las {{ $hora($prestamo->inicioEntrega()) }}; solo tú lo puedes recoger.</p>
+                        @elseif ($prestamo->estado === 'pendiente')
+                            <p class="text-amber-800">Esperando la respuesta del funcionario. Te avisaremos en la campana.</p>
+                        @elseif ($prestamo->estado === 'rechazado')
+                            <p class="{{ $aviso }} bg-rose-50 text-rose-800 ring-rose-200"><b>Motivo:</b> {{ $prestamo->motivo_rechazo }}</p>
+                        @elseif ($prestamo->estado === 'cancelado')
+                            @if ($prestamo->cancelada_por === 'solicitante')
+                                <p class="text-marca-suave">La cancelaste el {{ $cuando($prestamo->cancelado_en) }}.</p>
+                            @else
+                                <p class="{{ $aviso }} bg-rose-50 text-rose-800 ring-rose-200">
+                                    {{ $prestamo->cancelada_por === 'sistema' ? 'Se canceló porque ya no está disponible.' : 'La canceló la dependencia de préstamos.' }}
+                                    <b>Motivo:</b> {{ $prestamo->motivo_cancelacion }}
+                                </p>
+                            @endif
+                        @elseif ($prestamo->estado === 'entregado')
+                            <p class="{{ $prestamo->estaAtrasado() ? $aviso.' bg-rose-50 text-rose-800 ring-rose-200' : 'text-sky-800' }}">
+                                Lo recibiste el {{ $cuando($prestamo->entrega?->entregado_en) }}. Devuélvelo hasta las {{ $hora($prestamo->limiteDevolucion()) }}@if ($prestamo->estaAtrasado()): <b>ya pasó la hora límite</b>@endif.
+                            </p>
+                        @elseif ($prestamo->estado === 'no_recogido')
+                            <p class="text-marca-suave">El bloque terminó y no se recogió.</p>
+                        @elseif ($prestamo->estado === 'no_entregado')
+                            <p class="{{ $aviso }} bg-rose-50 text-rose-800 ring-rose-200">No se pudo entregar. <b>Motivo:</b> {{ $prestamo->motivo_no_entrega }}</p>
+                        @elseif ($prestamo->estado === 'por_corregir' && $ultima)
+                            <p class="{{ $aviso }} bg-amber-50 text-amber-900 ring-amber-200">
+                                La devolución no se recibió todavía. <b>Motivo:</b> {{ $ultima->motivo }}@if ($ultima->plazo) · <b>Plazo:</b> {{ $ultima->plazo }}@endif
+                            </p>
+                        @elseif ($prestamo->estado === 'devuelto' && $ultima)
+                            <p class="text-marca-suave">Lo devolviste el {{ $cuando($ultima->recibido_en) }}@if ($ultima->conRetraso()), con {{ Configuracion::duracion($ultima->minutos_retraso) }} de retraso @endif.</p>
+                            @if ($ultima->tienePendienteSinResolver())
+                                <p class="mt-2 {{ $aviso }} bg-amber-50 text-amber-900 ring-amber-200"><b>Queda un pendiente:</b> {{ $ultima->pendiente }}</p>
+                            @endif
+                        @elseif ($prestamo->estado === 'devolucion_rechazada' && $ultima)
+                            <p class="{{ $aviso }} bg-rose-50 text-rose-800 ring-rose-200">La devolución fue rechazada y quedó pendiente de gestión. <b>Motivo:</b> {{ $ultima->motivo }}</p>
+                        @endif
                     </div>
 
-                    @if ($prestamo->esActivo())
+                    @if (in_array($prestamo->estado, App\Models\Prestamo::CANCELABLES, true))
                         <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-marca-linea pt-4">
                             @if ($prestamo->sePuedeCancelar())
                                 <span class="text-xs text-marca-suave">Puedes cancelarla hasta el {{ $prestamo->limiteCancelacion()->format('d/m/Y \a \l\a\s g:i a') }}.</span>

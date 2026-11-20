@@ -100,10 +100,10 @@ class User extends Authenticatable
         return self::where('rol', 'administrador')->where('activo', true)->count();
     }
 
-    /** Préstamos que pidió y siguen abiertos: pendientes o aprobados sin devolver. */
+    /** Préstamos que pidió y siguen abiertos: pendientes, aprobados, entregados o por corregir (sin devolver). */
     public function tienePrestamosActivos(): bool
     {
-        return $this->solicitudes()->whereIn('estado', ['pendiente', 'aprobado'])->exists();
+        return $this->solicitudes()->whereIn('estado', ['pendiente', 'aprobado', 'entregado', 'por_corregir'])->exists();
     }
 
     public function nombreTipoDocumento(): string
@@ -130,6 +130,8 @@ class User extends Authenticatable
                 'Equipos y salones' => 'equipos.index',
                 'Préstamos' => 'prestamos.index',
                 'Por aprobar' => 'prestamos.pendientes',
+                'Entregas' => 'entregas.index',
+                'Devoluciones' => 'devoluciones.index',
                 'Reporte' => 'reportes.prestamos',
                 'Noticias' => 'noticias.index',
                 'Configuración' => 'configuracion.edit',
@@ -139,6 +141,8 @@ class User extends Authenticatable
                 'Equipos y salones' => 'equipos.index',
                 'Préstamos' => 'prestamos.index',
                 'Por aprobar' => 'prestamos.pendientes',
+                'Entregas' => 'entregas.index',
+                'Devoluciones' => 'devoluciones.index',
                 'Reporte' => 'reportes.prestamos',
                 'Noticias' => 'noticias.index',
                 '2FA' => 'seguridad.2fa',

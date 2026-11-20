@@ -6,8 +6,10 @@ use App\Models\Categoria;
 use App\Models\Configuracion;
 use App\Models\Equipo;
 use App\Models\Horario;
+use App\Models\Mantenimiento;
 use App\Models\Prestamo;
 use App\Models\User;
+use App\Notifications\SolicitudCancelada;
 use App\Notifications\SolicitudPorAprobar;
 use App\Notifications\SolicitudRespondida;
 use App\Support\Festivos;
@@ -57,8 +59,12 @@ class PrestamoService
     {
         $horarios = $equipo->horarios()->where('dia_semana', Horario::diaDe($fecha))->get();
         $prestamos = Prestamo::where('equipo_id', $equipo->id)->whereDate('fecha', $fecha)->whereIn('estado', Prestamo::ACTIVOS)->get();
+        $bloques = $this->conEstado($horarios, $prestamos, $fecha, $user, $equipo->esEspacio());
 
-        return $this->conEstado($horarios, $prestamos, $fecha, $user, $equipo->esEspacio());
+        // En mantenimiento ese día: los bloques se muestran, pero ninguno se puede pedir.
+        return $equipo->mantenimientoEl($fecha)
+            ? $bloques->map(fn (array $bloque) => ['horario' => $bloque['horario'], 'estado' => 'mantenimiento'])
+            : $bloques;
     }
 
     /**
@@ -98,11 +104,18 @@ class PrestamoService
         $ids = $equipos->modelKeys();
         $horarios = Horario::whereIn('equipo_id', $ids)->where('dia_semana', Horario::diaDe($fecha))->get()->groupBy('equipo_id');
         $prestamos = Prestamo::whereIn('equipo_id', $ids)->whereDate('fecha', $fecha)->whereIn('estado', Prestamo::ACTIVOS)->get()->groupBy('equipo_id');
+        $mantenimientos = Mantenimiento::whereIn('equipo_id', $ids)->vigenteEl($fecha)->get()->keyBy('equipo_id');
 
-        return $equipos->map(function (Equipo $equipo) use ($horarios, $prestamos, $fecha, $user, $espacio) {
+        return $equipos->map(function (Equipo $equipo) use ($horarios, $prestamos, $mantenimientos, $fecha, $user, $espacio) {
             $bloques = $this->conEstado($horarios->get($equipo->id, collect()), $prestamos->get($equipo->id, collect()), $fecha, $user, $espacio);
+            $mantenimiento = $mantenimientos->get($equipo->id);
 
-            return ['equipo' => $equipo, 'libres' => $bloques->where('estado', 'libre')->count(), 'delDia' => $bloques->count()];
+            return [
+                'equipo' => $equipo,
+                'libres' => $mantenimiento ? 0 : $bloques->where('estado', 'libre')->count(),
+                'delDia' => $bloques->count(),
+                'mantenimiento' => $mantenimiento,
+            ];
         })->sortByDesc(fn (array $opcion) => $opcion['libres'] > 0)->values();
     }
 
@@ -121,7 +134,7 @@ class PrestamoService
 
             $estado = match (true) {
                 $seCruzan->contains(fn (Prestamo $p) => (int) $p->solicitante_id === (int) $user->id) => 'propio',
-                $seCruzan->contains('estado', 'aprobado') => 'ocupado',
+                $seCruzan->contains(fn (Prestamo $p) => in_array($p->estado, Prestamo::RESERVADOS, true)) => 'ocupado',
                 $inicio->lessThanOrEqualTo(now()) => 'pasado',
                 $inicio->lessThan($limite) => 'anticipacion',
                 default => 'libre',
@@ -167,7 +180,8 @@ class PrestamoService
             $nombre = $equipo->esEspacio() ? 'el espacio' : 'el equipo';
 
             $this->exigir($equipo->permiteSolicitud($user), 'No puedes solicitar '.$nombre.' «'.$equipo->nombre.'».');
-            $this->exigir($equipo->estaDisponible(), ucfirst($nombre).' «'.$equipo->nombre.'» está en mantenimiento.');
+            $mantenimiento = $equipo->mantenimientoEl($fecha);
+            $this->exigir(! $mantenimiento, ucfirst($nombre).' «'.$equipo->nombre.'» está en mantenimiento ese día. Motivo: '.$mantenimiento?->motivo);
             $this->exigir((int) $horario->equipo_id === (int) $equipo->id && $horario->dia_semana === Horario::diaDe($fecha), 'Ese bloque no está en el horario de ese día. Elige uno de la lista.');
             $this->exigir($fecha->lessThanOrEqualTo(today()->addDays(self::DIAS_VISIBLES)), 'Solo se puede solicitar hasta '.self::DIAS_VISIBLES.' días adelante.');
             $this->exigir(! Festivos::esFestivo($fecha), 'El '.$fecha->format('d/m/Y').' es festivo ('.Festivos::nombre($fecha).'): ese día no hay préstamos.');
@@ -179,7 +193,7 @@ class PrestamoService
                 ($equipo->esEspacio() ? 'Los espacios' : 'Los equipos').' se deben solicitar con al menos '.Configuracion::duracion($anticipacion).' de anticipación.');
 
             $seCruzan = Prestamo::queSeCruzan($equipo->id, $fecha->toDateString(), $horario->hora_inicio, $horario->hora_fin)->whereIn('estado', Prestamo::ACTIVOS);
-            $this->exigir(! (clone $seCruzan)->where('estado', 'aprobado')->exists(), 'Ese bloque ya está ocupado. Elige otro horario.');
+            $this->exigir(! (clone $seCruzan)->whereIn('estado', Prestamo::RESERVADOS)->exists(), 'Ese bloque ya está ocupado. Elige otro horario.');
             $this->exigir(! (clone $seCruzan)->where('solicitante_id', $user->id)->exists(), 'Ya tienes una solicitud de «'.$equipo->nombre.'» en ese bloque.');
 
             $revision = $this->revisar($equipo, $user);
@@ -197,9 +211,9 @@ class PrestamoService
                 'fecha_respuesta' => $revision['requiereAprobacion'] ? null : now(),
             ]);
 
-            if ($prestamo->estado === 'aprobado') {
-                $this->rechazarLasQueSeCruzan($prestamo);
-            } else {
+            // Si queda aprobada sola, las pendientes de otras personas para ese bloque no se rechazan:
+            // el funcionario decide (por ejemplo, cancelar la de un docente para aprobar la de un estudiante).
+            if ($prestamo->estado === 'pendiente') {
                 Notification::send(User::where('rol', 'funcionario')->where('activo', true)->get(), new SolicitudPorAprobar($prestamo));
             }
 
@@ -219,8 +233,11 @@ class PrestamoService
 
             $this->exigir($prestamo->estado === 'pendiente', 'Esta solicitud ya fue atendida.');
             $this->exigir((bool) $prestamo->inicio()?->isFuture(), 'Ya pasó la hora de inicio: esta solicitud no se puede aprobar.');
-            $this->exigir(! Prestamo::queSeCruzan($prestamo->equipo_id, $prestamo->fecha->toDateString(), $prestamo->hora_inicio, $prestamo->hora_fin)
-                ->where('estado', 'aprobado')->exists(), 'Ese bloque ya está aprobado para otra persona.');
+            $aprobada = Prestamo::queSeCruzan($prestamo->equipo_id, $prestamo->fecha->toDateString(), $prestamo->hora_inicio, $prestamo->hora_fin)
+                ->where('estado', 'aprobado')->with('solicitante')->first();
+            $this->exigir(! $aprobada, $aprobada
+                ? "Primero debes cancelar la solicitud aprobada de {$aprobada->solicitante->name} ({$aprobada->solicitante->rol}) para el {$aprobada->fechaLarga()}, de {$aprobada->bloque()}."
+                : '');
 
             $prestamo->update(['estado' => 'aprobado', 'aprobacion' => 'funcionario', 'funcionario_id' => $atiende->id, 'fecha_respuesta' => now()]);
 
@@ -254,11 +271,11 @@ class PrestamoService
         DB::transaction(function () use ($prestamo, $user) {
             $prestamo = Prestamo::whereKey($prestamo->id)->lockForUpdate()->firstOrFail();
             $this->exigir((int) $prestamo->solicitante_id === (int) $user->id, 'Solo quien hizo la solicitud la puede cancelar.');
-            $this->exigir($prestamo->esActivo(), 'Esta solicitud ya no está activa.');
+            $this->exigir(in_array($prestamo->estado, Prestamo::CANCELABLES, true), 'Esta solicitud ya no se puede cancelar.');
             $this->exigir($prestamo->sePuedeCancelar(), 'Ya no se puede cancelar: se podía hasta '
                 .Configuracion::duracion(Configuracion::minutosCancelacion($user)).' antes de la hora de inicio.');
 
-            $prestamo->update(['estado' => 'cancelado', 'cancelado_en' => now()]);
+            $prestamo->update(['estado' => 'cancelado', 'cancelado_en' => now(), 'cancelada_por' => 'solicitante', 'cancelado_por_id' => $user->id]);
             $this->quitarAvisos($prestamo);
         });
     }
@@ -285,6 +302,38 @@ class PrestamoService
     /**
      * Rechaza las pendientes del mismo espacio o equipo que se cruzan con una recién aprobada, y les avisa.
      */
+    /**
+     * El funcionario o el administrador cancela una solicitud aprobada que todavía no se ha entregado,
+     * con su motivo. Al solicitante le llega el aviso. Así se libera el bloque para aprobar otra.
+     */
+    public function cancelarAprobada(Prestamo $prestamo, User $atiende, string $motivo): void
+    {
+        DB::transaction(function () use ($prestamo, $atiende, $motivo) {
+            $prestamo = Prestamo::whereKey($prestamo->id)->lockForUpdate()->firstOrFail();
+            $this->exigir($prestamo->estado === 'aprobado', 'Solo se puede cancelar una solicitud aprobada que todavía no se ha entregado.');
+            $this->exigir((bool) $prestamo->fin()?->isFuture(), 'El bloque de esta solicitud ya terminó.');
+
+            $prestamo->update(['estado' => 'cancelado', 'cancelado_en' => now(), 'cancelada_por' => 'personal', 'cancelado_por_id' => $atiende->id, 'motivo_cancelacion' => $motivo]);
+            $prestamo->solicitante->notify(new SolicitudCancelada($prestamo));
+        });
+    }
+
+    /**
+     * Cancela solicitudes porque lo pedido ya no está disponible (mantenimiento o equipo dañado).
+     * Cada solicitante recibe el aviso con el motivo, y se quitan los avisos de los funcionarios.
+     * Se llama dentro de la transacción de quien la usa.
+     *
+     * @param  Collection<int, Prestamo>  $prestamos
+     */
+    public function cancelarPorElSistema(Collection $prestamos, string $motivo): void
+    {
+        $prestamos->each(function (Prestamo $prestamo) use ($motivo) {
+            $prestamo->update(['estado' => 'cancelado', 'cancelado_en' => now(), 'cancelada_por' => 'sistema', 'cancelado_por_id' => null, 'motivo_cancelacion' => $motivo]);
+            $this->quitarAvisos($prestamo);
+            $prestamo->solicitante->notify(new SolicitudCancelada($prestamo));
+        });
+    }
+
     private function rechazarLasQueSeCruzan(Prestamo $aprobado): void
     {
         Prestamo::queSeCruzan($aprobado->equipo_id, $aprobado->fecha->toDateString(), $aprobado->hora_inicio, $aprobado->hora_fin)

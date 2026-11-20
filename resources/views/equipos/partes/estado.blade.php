@@ -1,14 +1,12 @@
-{{-- Estado del equipo o espacio. Si está prestado no se cambia aquí: cambia al registrar la devolución. --}}
+{{-- Estado del equipo o espacio. No se elige aquí: lo ponen el mantenimiento programado, la entrega y la devolución. --}}
 <div class="{{ $clase ?? '' }}">
-    <x-input-label for="estado" value="Estado" />
-    @if ($equipo?->estado === 'prestado')
-        <p class="mt-1 text-sm text-marca-suave">Prestado: cambia solo al registrar la devolución.</p>
+    <x-input-label value="Estado" />
+    @if ($equipo)
+        <p class="mt-1 flex flex-wrap items-center gap-2 text-sm text-marca-suave">
+            <span class="insignia insignia-{{ $equipo->estado }}">{{ $equipo->estado }}</span>
+            Para ponerlo en mantenimiento, prográmalo desde su detalle.
+        </p>
     @else
-        <select id="estado" name="estado" class="mt-1 block w-full campo-uts" required>
-            @foreach (['disponible', 'mantenimiento'] as $opcion)
-                <option value="{{ $opcion }}" @selected(old('estado', $equipo?->estado ?? 'disponible') === $opcion)>{{ $opcion }}</option>
-            @endforeach
-        </select>
+        <p class="mt-1 text-sm text-marca-suave">Queda disponible. Para ponerlo en mantenimiento, prográmalo desde su detalle después de crearlo.</p>
     @endif
-    <x-input-error :messages="$errors->get('estado')" class="mt-2" />
 </div>
